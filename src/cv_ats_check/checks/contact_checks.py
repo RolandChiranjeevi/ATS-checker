@@ -11,7 +11,7 @@ NAME = "Contact details"
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 # Swedish/international numbers start with 0, 00 or +; also US style "(555) 123-4567".
-PHONE_RE = re.compile(r"(?<![\w/])(?:\+|00|0|\(\d{3}\))[\d () .\-]{6,}\d")
+PHONE_RE = re.compile(r"(?<![\d/])(?:\+|00|0|\(\d{3}\))[\d ().\-]{6,}\d")
 LINKEDIN_RE = re.compile(r"linkedin\.com/(?:in|pub)/[\w%.\-]+", re.IGNORECASE)
 GITHUB_RE = re.compile(r"github\.com/[\w.\-]+", re.IGNORECASE)
 _YEAR_RE = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
@@ -23,10 +23,19 @@ def find_emails(text: str) -> list[str]:
     return EMAIL_RE.findall(text)
 
 
+_UNICODE_SPACES = re.compile(r"[   -   　]")
+_UNICODE_DASHES = re.compile(r"[‐-―−]")
+
+
+def _normalise_separators(text: str) -> str:
+    """PDF extraction often yields thin/narrow spaces and en dashes inside phone numbers."""
+    return _UNICODE_DASHES.sub("-", _UNICODE_SPACES.sub(" ", text))
+
+
 def find_phones(text: str) -> list[str]:
     """Return phone-number candidates with 8-15 digits that are not date ranges."""
     phones = []
-    for match in PHONE_RE.finditer(text):
+    for match in PHONE_RE.finditer(_normalise_separators(text)):
         candidate = match.group(0).strip()
         digits = sum(c.isdigit() for c in candidate)
         if not 8 <= digits <= 15:
@@ -83,6 +92,11 @@ def check_contact_details(doc: ExtractedDocument, job: JobAd | None = None) -> C
     ]
 
     suggestions = [f"Write your {label} as plain text near the top." for label in missing_core]
+    if "phone" in missing_core or "email" in missing_core:
+        suggestions.append(
+            "If it is visible in your file, open 'What an ATS sees' in the report to see how "
+            "that line was extracted."
+        )
     if email_only_as_link:
         suggestions.append(
             "Your e-mail only exists as a clickable link; also write the address as plain text."

@@ -65,6 +65,45 @@ def test_phone_formats_are_found(text):
 
 
 @pytest.mark.parametrize(
+    ("label", "text"),
+    [
+        ("thin space", "070 270 93 57"),
+        ("narrow no-break space", "070 270 93 57"),
+        ("figure space", "070 270 93 57"),
+        ("en dash", "070–270–93–57"),
+        ("minus sign", "070−270 93 57"),
+        ("label glued on", "Tel070 270 93 57"),
+        ("icon glyph glued on", "070 270 93 57"),
+        ("icon extracted as a letter", "Ï070 270 93 57"),
+        ("international thin spaces", "+46 70 270 93 57"),
+    ],
+)
+def test_phone_numbers_with_pdf_style_separators_are_found(label, text):
+    assert find_phones(f"x {text} y") != [], label
+
+
+def test_phone_with_thin_spaces_counts_as_a_phone_in_the_contact_check():
+    doc = make_doc(["Anna Testsson", "anna@example.com", "070 270 93 57"])
+    result = check_contact_details(doc)
+    assert result.status is Status.PASS
+    assert "phone" in result.message
+
+
+def test_missing_phone_points_to_the_extracted_text_view():
+    result = check_contact_details(make_doc(["Anna Testsson", "anna@example.com"]))
+    assert result.status is Status.WARN
+    assert "What an ATS sees" in result.suggestion
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Ref2024 0101 2025", "ISO27001 certified", "ID0123", "Version 3.10.2024 rev"],
+)
+def test_digits_glued_to_letters_do_not_create_false_phones(text):
+    assert find_phones(f"x {text} y") == []
+
+
+@pytest.mark.parametrize(
     "text",
     ["2023–2025", "2018-01 – 2019-06", "12345", "Orgnr 1234", "Jan 2023 - Mar 2025", "2019/2021"],
 )

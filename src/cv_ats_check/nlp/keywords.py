@@ -1,0 +1,316 @@
+"""Explainable keyword extraction and matching.
+
+Method (no ML, no external services):
+
+1. Normalise and tokenise the job ad; drop stop words and job-ad boilerplate.
+2. Count 1-3 word phrases; add curated tech/testing terms from ``TECH_TERMS``.
+3. Keep a phrase if it is a tech term, repeats in the ad, or sits in a
+   "requirements" section. Score = count (+ half the requirement-section count)
+   x weight (tech x3, multi-word x1.5).
+4. Drop a phrase when a longer kept phrase always contains it.
+5. Count each keyword in the CV with the same normalisation.
+"""
+
+from __future__ import annotations
+
+import math
+import re
+from collections import Counter
+from dataclasses import dataclass, replace
+
+from cv_ats_check.nlp.normalize import stem, tokenize
+from cv_ats_check.nlp.stopwords import STOPWORDS, detect_language
+
+MAX_KEYWORDS = 25
+MIN_REPETITION_THRESHOLD = 10
+REPETITION_RATIO = 0.012  # of the CV's word count
+
+TECH_TERMS: tuple[str, ...] = (
+    # languages and tooling
+    "python",
+    "java",
+    "javascript",
+    "typescript",
+    "c#",
+    "c++",
+    "sql",
+    "bash",
+    "git",
+    "docker",
+    "kubernetes",
+    "linux",
+    "jenkins",
+    "gitlab",
+    "github actions",
+    "azure devops",
+    "ci/cd",
+    "jira",
+    "confluence",
+    "postman",
+    "swagger",
+    "rest api",
+    "api",
+    "graphql",
+    # test tools
+    "playwright",
+    "selenium",
+    "cypress",
+    "appium",
+    "junit",
+    "testng",
+    "pytest",
+    "cucumber",
+    "robot framework",
+    "jmeter",
+    "k6",
+    "gatling",
+    "sonarqube",
+    "testrail",
+    "xray",
+    "browserstack",
+    # practices (English)
+    "test automation",
+    "automated testing",
+    "manual testing",
+    "api testing",
+    "regression testing",
+    "exploratory testing",
+    "performance testing",
+    "load testing",
+    "integration testing",
+    "unit testing",
+    "acceptance testing",
+    "end to end",
+    "test strategy",
+    "test plan",
+    "test cases",
+    "test design",
+    "bdd",
+    "tdd",
+    "istqb",
+    "agile",
+    "scrum",
+    "kanban",
+    "devops",
+    "accessibility",
+    "security testing",
+    "mobile testing",
+    # practices (Swedish)
+    "testautomatisering",
+    "automatiserad testning",
+    "manuell testning",
+    "api testning",
+    "regressionstest",
+    "regressionstester",
+    "prestandatest",
+    "prestandatester",
+    "teststrategi",
+    "testplan",
+    "testfall",
+    "acceptanstest",
+    "agila metoder",
+    "systemtest",
+    "integrationstest",
+)
+
+_REQ_HEADINGS = (
+    "requirements",
+    "qualifications",
+    "krav",
+    "kvalifikationer",
+    "meriterande",
+    "nice to have",
+    "you have",
+    "about you",
+    "what you bring",
+    "your profile",
+    "who you are",
+    "must have",
+    "vi söker dig som",
+    "din profil",
+    "du har",
+    "önskvärt",
+    "för dig som",
+    "skills",
+)
+_STOP_HEADINGS = (
+    "about us",
+    "om oss",
+    "we offer",
+    "vi erbjuder",
+    "what we offer",
+    "benefits",
+    "how to apply",
+    "ansökan",
+    "apply",
+    "responsibilities",
+    "arbetsuppgifter",
+    "about the role",
+    "om tjänsten",
+)
+
+
+@dataclass(frozen=True)
+class Keyword:
+    """A keyword taken from the job ad, with its counts."""
+
+    term: str
+    keys: tuple[str, ...]
+    job_count: int
+    cv_count: int = 0
+    is_tech: bool = False
+
+
+@dataclass
+class KeywordAnalysis:
+    """Result of comparing a CV against a job ad."""
+
+    found: list[Keyword]
+    missing: list[Keyword]
+    frequent: list[Keyword]
+    threshold: int
+    cv_word_count: int
+    job_language: str
+    cv_language: str
+
+    @property
+    def total(self) -> int:
+        return len(self.found) + len(self.missing)
+
+    @property
+    def match_pct(self) -> int:
+        return round(100 * len(self.found) / self.total) if self.total else 0
+
+
+def frequency_threshold(word_count: int) -> int:
+    """Max occurrences of one keyword before it looks over-optimised; scales with CV length."""
+    return max(MIN_REPETITION_THRESHOLD, math.ceil(REPETITION_RATIO * word_count))
+
+
+def count_sequence(haystack: list[str], needle: tuple[str, ...]) -> int:
+    """Count non-overlapping occurrences of ``needle`` as a contiguous run in ``haystack``."""
+    n = len(needle)
+    if n == 0:
+        return 0
+    count = i = 0
+    while i <= len(haystack) - n:
+        if tuple(haystack[i : i + n]) == needle:
+            count += 1
+            i += n
+        else:
+            i += 1
+    return count
+
+
+_SEGMENT_RE = re.compile(r"[\n\r,;:!?()•]+|\.(?=\s|$)")
+
+
+def _is_heading(norm: str, vocabulary: tuple[str, ...]) -> bool:
+    return len(norm.split()) <= 6 and any(norm.startswith(h) for h in vocabulary)
+
+
+def requirement_text(job_text: str) -> str:
+    """Return the lines of the ad that sit under a requirements-style heading."""
+    selected: list[str] = []
+    active = False
+    for line in job_text.splitlines():
+        norm = line.casefold().strip(" :-•*#\t")
+        if not norm:
+            continue
+        if _is_heading(norm, _REQ_HEADINGS):
+            active = True
+        elif _is_heading(norm, _STOP_HEADINGS):
+            active = False
+        if active:
+            selected.append(line)
+    return "\n".join(selected)
+
+
+def _contains(longer: tuple[str, ...], shorter: tuple[str, ...]) -> bool:
+    n = len(shorter)
+    return any(longer[i : i + n] == shorter for i in range(len(longer) - n + 1))
+
+
+def extract_job_keywords(job_text: str, max_keywords: int = MAX_KEYWORDS) -> list[Keyword]:
+    """Pick the most relevant keywords and phrases from a job ad."""
+    keys = [stem(t) for t in tokenize(job_text)]
+
+    counts: Counter[tuple[str, ...]] = Counter()
+    surface: dict[tuple[str, ...], str] = {}
+    # Phrases never span a line break or punctuation, so list items stay separate.
+    for segment in _SEGMENT_RE.split(job_text):
+        raw = tokenize(segment)
+        seg_keys = [stem(t) for t in raw]
+        skip = [t in STOPWORDS or len(t) < 2 for t in raw]
+        for n in (1, 2, 3):
+            for i in range(len(raw) - n + 1):
+                if any(skip[i : i + n]):
+                    continue
+                key = tuple(seg_keys[i : i + n])
+                counts[key] += 1
+                surface.setdefault(key, " ".join(raw[i : i + n]))
+
+    tech_keys: set[tuple[str, ...]] = set()
+    for term in TECH_TERMS:
+        key = tuple(stem(t) for t in tokenize(term))
+        found = count_sequence(keys, key)
+        if found:
+            counts[key] = found
+            surface[key] = term
+            tech_keys.add(key)
+
+    req_keys = [stem(t) for t in tokenize(requirement_text(job_text))]
+    scored: list[tuple[float, tuple[str, ...]]] = []
+    for key, count in counts.items():
+        in_req = count_sequence(req_keys, key)
+        is_tech = key in tech_keys
+        if not (is_tech or count >= 2 or in_req >= 1):
+            continue
+        weight = 3.0 if is_tech else (1.5 if len(key) > 1 else 1.0)
+        scored.append((weight * (count + 0.5 * in_req), key))
+
+    candidate_counts = {key: counts[key] for _, key in scored}
+    kept: list[tuple[float, tuple[str, ...]]] = []
+    for score, key in scored:
+        # A tech term is only absorbed by a longer tech phrase, never by generic word runs.
+        subsumed = any(
+            len(other) > len(key)
+            and other_count == counts[key]
+            and (key not in tech_keys or other in tech_keys)
+            and _contains(other, key)
+            for other, other_count in candidate_counts.items()
+        )
+        if not subsumed:
+            kept.append((score, key))
+
+    kept.sort(key=lambda item: (-item[0], surface[item[1]]))
+    return [
+        Keyword(term=surface[key], keys=key, job_count=counts[key], is_tech=key in tech_keys)
+        for _, key in kept[:max_keywords]
+    ]
+
+
+def analyze_keywords(cv_text: str, job_text: str) -> KeywordAnalysis:
+    """Compare CV text against a job ad: found, missing and over-repeated keywords."""
+    cv_keys = [stem(t) for t in tokenize(cv_text)]
+    cv_words = len(cv_text.split())
+    threshold = frequency_threshold(cv_words)
+
+    found: list[Keyword] = []
+    missing: list[Keyword] = []
+    for keyword in extract_job_keywords(job_text):
+        keyword = replace(keyword, cv_count=count_sequence(cv_keys, keyword.keys))
+        (found if keyword.cv_count else missing).append(keyword)
+
+    frequent = sorted(
+        (k for k in found if k.cv_count > threshold), key=lambda k: (-k.cv_count, k.term)
+    )
+    return KeywordAnalysis(
+        found=found,
+        missing=missing,
+        frequent=frequent,
+        threshold=threshold,
+        cv_word_count=cv_words,
+        job_language=detect_language(job_text),
+        cv_language=detect_language(cv_text),
+    )

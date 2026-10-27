@@ -1,0 +1,24 @@
+QA-ingenjör – Exempel Mjukvara AB
+
+Om oss
+Vi bygger system för logistik i Göteborg.
+
+Arbetsuppgifter
+- Planera och genomföra tester
+- Bygga automatiserade tester
+
+Krav
+- Erfarenhet av Playwright eller Selenium
+- API-testning med Postman
+- Kunskap om CI/CD och GitHub Actions
+- Teststrategi och regressionstester
+- Erfarenhet av prestandatester, JMeter
+- Agila metoder, Scrum och Jira
+- Python
+
+Meriterande
+- ISTQB-certifiering
+- Docker
+
+Vi erbjuder
+Ett trevligt team och flexibla arbetstider.

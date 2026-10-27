@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CV ATS Check – {{ report.source }}</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
+  .badge { display: inline-block; min-width: 3.2rem; text-align: center; padding: 0 .4rem; border-radius: .3rem; font-weight: 600; color: #fff; }
+  .PASS { background: #1a7f37; } .WARN { background: #9a6700; } .FAIL { background: #cf222e; }
+  blockquote { margin: 1rem 0; padding: .5rem 1rem; border-left: 4px solid #999; background: #f6f6f6; }
+  ul.summary { list-style: none; padding: 0; }
+  ul.summary li { margin: .25rem 0; }
+  section.check { margin: 1.5rem 0; }
+  .extra { font-family: ui-monospace, monospace; font-size: .9rem; margin: .25rem 0; }
+</style>
+</head>
+<body>
+<h1>CV ATS Check</h1>
+<p><strong>File:</strong> {{ report.source }}</p>
+<blockquote>{{ disclaimer_sv }}<br>{{ disclaimer_en }}</blockquote>
+
+<h2>Summary</h2>
+<ul class="summary">
+{% for name, status, note in rows %}
+  <li><span class="badge {{ status }}">{{ status }}</span> {{ name }}{% if note %} – {{ note }}{% endif %}</li>
+{% endfor %}
+</ul>
+<p><strong>Totals:</strong> {{ counts["PASS"] }} PASS, {{ counts["WARN"] }} WARN, {{ counts["FAIL"] }} FAIL</p>
+
+<h2>Details</h2>
+<section class="check">
+  <h3>Parser status</h3>
+  <p><span class="badge PASS">PASS</span> {{ report.parser_message }}</p>
+</section>
+{% for r, extra in results %}
+<section class="check">
+  <h3>{{ r.name }}</h3>
+  <p><span class="badge {{ r.status.value }}">{{ r.status.value }}</span> {{ r.message }}</p>
+  {% if r.suggestion %}<p><strong>Suggestion:</strong> {{ r.suggestion }}</p>{% endif %}
+  {% for line in extra %}<p class="extra">{{ line }}</p>{% endfor %}
+</section>
+{% endfor %}
+
+<h2>Disclaimer</h2>
+<p>{{ disclaimer_sv }}</p>
+<p>{{ disclaimer_en }}</p>
+<p><em>{{ privacy_note }}</em></p>
+</body>
+</html>

@@ -1,0 +1,24 @@
+QA Engineer – Example Software AB
+
+About us
+We build software for the logistics industry in Stockholm.
+
+Responsibilities
+- Design and execute test plans
+- Build and maintain automated tests
+
+Requirements
+- Experience with Playwright or Selenium
+- API testing with Postman
+- Knowledge of CI/CD and GitHub Actions
+- Test strategy and regression testing
+- Experience with performance testing, JMeter or k6
+- Agile and Scrum, Jira
+- Python or Java
+
+Nice to have
+- ISTQB certification
+- Docker
+
+We offer
+A friendly team and flexible hours.

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import base64
+
 import pytest
 
 from cv_ats_check.checks import run_all_checks
 from cv_ats_check.extraction import extract_document
 from cv_ats_check.models import CheckResult, JobAd, Status
-from cv_ats_check.reporting import build_report, render_html, render_markdown
+from cv_ats_check.reporting import build_report, download_links, render_html, render_markdown
 from cv_ats_check.reporting.report_generator import DISCLAIMER_SV
 from tests.helpers import make_doc
 
@@ -61,6 +63,69 @@ def test_html_escapes_untrusted_text():
     assert "<script>alert(1)" not in html
     assert "&lt;script&gt;" in html
     assert "<img src=x" not in html
+
+
+def test_html_shows_extracted_text_in_reading_order(report):
+    html = render_html(report)
+    assert "What an ATS sees" in html
+    text = html[html.index('<pre class="ats-text">') :]
+    assert text.index("Anna Testsson") < text.index("Experience") < text.index("Education")
+    assert "Page 1" in html
+
+
+def test_markdown_does_not_embed_the_cv_text(report):
+    assert "What an ATS sees" not in render_markdown(report)
+
+
+def test_docx_text_view_has_no_page_labels(fixtures_dir):
+    doc = extract_document(fixtures_dir / "cv_normal.docx")
+    html = render_html(build_report(doc, run_all_checks(doc), job_provided=False))
+    assert "What an ATS sees" in html
+    assert "Page 1" not in html
+
+
+def test_extracted_text_is_escaped():
+    doc = make_doc(["Anna Testsson", "<b>bold</b> <script>alert(1)</script>"])
+    html = render_html(build_report(doc, [], job_provided=False))
+    assert "<script>alert(1)" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+
+
+def test_download_links_decode_to_the_reports(report):
+    links = download_links(report)
+    assert [name for _, name, _ in links] == [
+        "cv_normal_en-ats-report.md",
+        "cv_normal_en-ats-report.html",
+    ]
+    decoded = [_decode(href) for _, _, href in links]
+    assert decoded[0] == render_markdown(report)
+    assert decoded[1] == render_html(report)
+    assert "Download" not in decoded[1]
+
+
+def test_page_shows_download_links_only_when_asked(report):
+    assert "download=" not in render_html(report)
+    page = render_html(report, downloads=download_links(report))
+    assert page.count("download=") == 2
+    assert "data:text/markdown;charset=utf-8;base64," in page
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("cv.pdf", "cv-ats-report.md"),
+        ("Åsa Öberg CV (final).docx", "Åsa_Öberg_CV_final-ats-report.md"),
+        ('"><img src=x>.pdf', "img_src_x-ats-report.md"),
+        ("...", "cv-ats-report.md"),
+    ],
+)
+def test_download_file_names_are_sanitised(report, source, expected):
+    report.source = source
+    assert download_links(report)[0][1] == expected
+
+
+def _decode(data_url: str) -> str:
+    return base64.b64decode(data_url.split("base64,", 1)[1]).decode()
 
 
 def test_html_has_status_badges(report):

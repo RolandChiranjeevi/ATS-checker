@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import base64
+import re
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -38,6 +40,8 @@ class Report:
     parser_message: str
     results: list[CheckResult]
     job_provided: bool
+    extracted_pages: list[tuple[int, str]] = field(default_factory=list)  # (page, text)
+    paginated: bool = True
 
     @property
     def parser_status(self) -> Status:
@@ -66,7 +70,18 @@ def build_report(
     """Assemble a Report for a checked document (``source`` overrides the shown file name)."""
     pages = f" ({doc.page_count} page(s))" if doc.paginated else ""
     parser_message = f"Extracted {doc.word_count} words from {doc.file_type.upper()}{pages}."
-    return Report(source or doc.path.name, parser_message, results, job_provided)
+    by_page: dict[int, list[str]] = {}
+    for block in doc.blocks:
+        by_page.setdefault(block.page, []).append(block.text)
+    extracted_pages = [(page, "\n".join(lines)) for page, lines in sorted(by_page.items())]
+    return Report(
+        source or doc.path.name,
+        parser_message,
+        results,
+        job_provided,
+        extracted_pages=extracted_pages,
+        paginated=doc.paginated,
+    )
 
 
 def keyword_lines(analysis: KeywordAnalysis) -> list[str]:
@@ -144,13 +159,47 @@ def render_form(error: str = "", job_text: str = "") -> str:
     )
 
 
-def render_html(report: Report, back_link: str | None = None) -> str:
+def _slug(name: str) -> str:
+    """A safe download file name stem (keeps letters incl. å/ä/ö, digits, dot, dash)."""
+    return re.sub(r"[^\w.-]+", "_", Path(name).stem).strip("_.") or "cv"
+
+
+def _data_url(mime: str, content: str) -> str:
+    return f"data:{mime};charset=utf-8;base64,{base64.b64encode(content.encode()).decode()}"
+
+
+def download_links(report: Report) -> list[tuple[str, str, str]]:
+    """(label, file name, data: URL) for the Markdown and HTML versions of the report.
+
+    Data URLs are built into the page, so the server never stores the report.
+    """
+    stem = _slug(report.source)
+    return [
+        (
+            "Download Markdown (.md)",
+            f"{stem}-ats-report.md",
+            _data_url("text/markdown", render_markdown(report)),
+        ),
+        (
+            "Download HTML (.html)",
+            f"{stem}-ats-report.html",
+            _data_url("text/html", render_html(report)),
+        ),
+    ]
+
+
+def render_html(
+    report: Report,
+    back_link: str | None = None,
+    downloads: list[tuple[str, str, str]] | None = None,
+) -> str:
     """Render the report as a standalone HTML page (autoescaped)."""
     return (
         _env()
         .get_template("report.html.j2")
         .render(
             back_link=back_link,
+            downloads=downloads,
             report=report,
             counts={s.value: n for s, n in report.counts().items()},
             rows=[(row.name, row.status.value, row.note) for row in report.summary_rows()],

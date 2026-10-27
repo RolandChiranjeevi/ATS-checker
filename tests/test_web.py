@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import io
+import re
 from pathlib import Path
 
 import pytest
@@ -42,6 +44,21 @@ def test_check_with_job_text_returns_full_report(client, fixtures_dir, job_en):
     assert "Job keyword match" in body and "Contact details" in body
     assert "Check another CV" in body
     assert "cv_normal_en.pdf" in body
+
+
+def test_report_page_has_text_view_and_working_downloads(client, fixtures_dir):
+    body = post_cv(client, fixtures_dir / "cv_normal_en.pdf").get_data(as_text=True)
+    assert "What an ATS sees" in body and "Anna Testsson" in body
+    assert 'download="cv_normal_en-ats-report.md"' in body
+    markdown_href = re.search(r'href="(data:text/markdown[^"]+)"', body).group(1)
+    decoded = base64.b64decode(markdown_href.split("base64,", 1)[1]).decode()
+    assert decoded.startswith("# CV ATS Check")
+    assert "cv_normal_en.pdf" in decoded
+
+
+def test_error_pages_have_no_downloads(client, fixtures_dir):
+    body = post_cv(client, fixtures_dir / "cv_corrupt.pdf").get_data(as_text=True)
+    assert "download=" not in body
 
 
 def test_check_without_job_skips_keyword_checks(client, fixtures_dir):

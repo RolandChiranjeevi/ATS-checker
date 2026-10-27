@@ -26,7 +26,9 @@ def test_full_run_writes_markdown_and_html(tmp_path, fixtures_dir, job_en, capsy
     )
     assert code == 0
     assert out.read_text(encoding="utf-8").startswith("# CV ATS Check")
-    assert "<html" in html.read_text(encoding="utf-8")
+    html_text = html.read_text(encoding="utf-8")
+    assert "<html" in html_text and "What an ATS sees" in html_text
+    assert "download=" not in html_text
     assert "PASS" in capsys.readouterr().out
 
 

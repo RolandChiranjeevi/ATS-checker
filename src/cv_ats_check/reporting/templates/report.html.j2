@@ -13,12 +13,18 @@
   ul.summary li { margin: .25rem 0; }
   section.check { margin: 1.5rem 0; }
   .extra { font-family: ui-monospace, monospace; font-size: .9rem; margin: .25rem 0; }
+  .downloads a { display: inline-block; margin: 0 .5rem .5rem 0; padding: .4rem .9rem; border: 1px solid #555; border-radius: .3rem; color: inherit; text-decoration: none; font-weight: 600; }
+  details.ats-view { margin: 1rem 0; }
+  details.ats-view summary { cursor: pointer; font-weight: 600; }
+  pre.ats-text { white-space: pre-wrap; word-break: break-word; background: #f6f6f6; padding: .75rem 1rem; border-radius: .3rem; font-size: .85rem; }
+  .page-label { font-weight: 600; margin: 1rem 0 .25rem; }
 </style>
 </head>
 <body>
 {% if back_link %}<p><a href="{{ back_link }}">&larr; Check another CV</a></p>{% endif %}
 <h1>CV ATS Check</h1>
 <p><strong>File:</strong> {{ report.source }}</p>
+{% if downloads %}<p class="downloads">{% for label, filename, href in downloads %}<a download="{{ filename }}" href="{{ href }}">{{ label }}</a>{% endfor %}</p>{% endif %}
 <blockquote>{{ disclaimer_sv }}<br>{{ disclaimer_en }}</blockquote>
 
 <h2>Summary</h2>
@@ -42,6 +48,19 @@
   {% for line in extra %}<p class="extra">{{ line }}</p>{% endfor %}
 </section>
 {% endfor %}
+
+{% if report.extracted_pages %}
+<h2>What an ATS sees</h2>
+<p>This is the text extracted from your file, in the order a parser reads it. If your name,
+dates or section headings look jumbled, missing or out of order here, an ATS will see the same.</p>
+<details class="ats-view">
+  <summary>Show extracted text</summary>
+  {% for page, text in report.extracted_pages %}
+  {% if report.paginated %}<p class="page-label">Page {{ page }}</p>{% endif %}
+  <pre class="ats-text">{{ text }}</pre>
+  {% endfor %}
+</details>
+{% endif %}
 
 <h2>Disclaimer</h2>
 <p>{{ disclaimer_sv }}</p>

@@ -16,7 +16,7 @@ from flask import Flask, abort, request
 from cv_ats_check import __version__
 from cv_ats_check.extraction import ExtractionError
 from cv_ats_check.models import JobAd
-from cv_ats_check.reporting import render_form, render_html
+from cv_ats_check.reporting import download_links, render_form, render_html
 from cv_ats_check.service import JobAdError, decode_job_ad, run_check
 
 HOST = "127.0.0.1"
@@ -99,7 +99,7 @@ def create_app() -> Flask:
                 report = run_check(path, job, source=name)
             except ExtractionError as exc:
                 return _form_error(str(exc).replace(str(path), name), job_text)
-        return render_html(report, back_link="/")
+        return render_html(report, back_link="/", downloads=download_links(report))
 
     return app
 

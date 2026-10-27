@@ -60,6 +60,17 @@ python cv_check.py --cv cv.pdf --job job_ad.txt --output report.md
 
 `--job` is optional; without it the keyword checks are skipped.
 
+### Local web UI
+
+```bash
+pip install -e ".[web]"   # or ".[dev]", which includes Flask
+cv-check-web              # then open http://127.0.0.1:8765 (change the port with --port)
+```
+
+Upload a CV, paste or upload a job ad and read the report in the browser. The server binds to
+`127.0.0.1` only, rejects foreign `Host`/`Origin` headers, limits uploads to 10 MB, sends a strict
+Content-Security-Policy, and keeps nothing: the upload lives in a temporary folder for one request.
+
 Exit codes: `0` no FAIL, `1` at least one FAIL, `2` input error (missing/empty/corrupt/unsupported file).
 
 ### Example output

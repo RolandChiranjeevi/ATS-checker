@@ -7,32 +7,21 @@ import sys
 from pathlib import Path
 
 from cv_ats_check import __version__
-from cv_ats_check.checks import run_all_checks
-from cv_ats_check.extraction import ExtractionError, extract_document
+from cv_ats_check.extraction import ExtractionError
 from cv_ats_check.models import JobAd, Status
-from cv_ats_check.reporting import build_report, render_html, render_markdown
+from cv_ats_check.reporting import render_html, render_markdown
+from cv_ats_check.service import JobAdError, decode_job_ad, run_check
 
 EXIT_OK = 0
 EXIT_FAIL_FOUND = 1
 EXIT_USAGE = 2
 
 
-class JobAdError(Exception):
-    """The job ad file could not be read."""
-
-
 def read_job_ad(path: Path) -> JobAd:
     """Read a job ad from a local text file (UTF-8, falling back to Windows-1252)."""
     if not path.is_file():
         raise JobAdError(f"Job ad file not found: {path}")
-    raw = path.read_bytes()
-    try:
-        text = raw.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        text = raw.decode("cp1252", errors="replace")
-    if not text.strip():
-        raise JobAdError(f"Job ad file is empty: {path}")
-    return JobAd(text=text)
+    return decode_job_ad(path.read_bytes(), str(path))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -57,14 +46,11 @@ def main(argv: list[str] | None = None) -> int:
     """Run the checker. Returns 0 (no FAIL), 1 (at least one FAIL) or 2 (usage/input error)."""
     args = build_parser().parse_args(argv)
     try:
-        doc = extract_document(args.cv)
         job = read_job_ad(args.job) if args.job else None
+        report = run_check(args.cv, job)
     except (ExtractionError, JobAdError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return EXIT_USAGE
-
-    results = run_all_checks(doc, job)
-    report = build_report(doc, results, job_provided=job is not None)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render_markdown(report), encoding="utf-8")

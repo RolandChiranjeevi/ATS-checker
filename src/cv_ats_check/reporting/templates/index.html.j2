@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CV ATS Check</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
+  label { display: block; font-weight: 600; margin-top: 1.25rem; }
+  textarea { width: 100%; min-height: 12rem; box-sizing: border-box; font: inherit; padding: .5rem; }
+  button { margin-top: 1.5rem; padding: .6rem 1.4rem; font: inherit; font-weight: 600; cursor: pointer; }
+  .hint { color: #555; font-size: .9rem; font-weight: 400; }
+  .error { background: #ffebe9; border-left: 4px solid #cf222e; padding: .5rem 1rem; margin: 1rem 0; }
+  .privacy { margin-top: 2rem; color: #555; font-size: .9rem; }
+</style>
+</head>
+<body>
+<h1>CV ATS Check</h1>
+<p>Check a CV against a job ad with explainable, local heuristics.</p>
+{% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+<form method="post" action="/check" enctype="multipart/form-data">
+  <label for="cv">CV file <span class="hint">(.pdf or .docx, max 10 MB)</span></label>
+  <input type="file" id="cv" name="cv" accept=".pdf,.docx" required>
+
+  <label for="job_text">Job ad <span class="hint">(optional; enables keyword checks)</span></label>
+  <textarea id="job_text" name="job_text" placeholder="Paste the job ad text here">{{ job_text }}</textarea>
+
+  <label for="job_file">…or upload the job ad as a text file</label>
+  <input type="file" id="job_file" name="job_file" accept=".txt,.md,text/plain">
+
+  <button type="submit">Check CV</button>
+</form>
+<p class="privacy">{{ privacy_note }} The file is read from a temporary folder and deleted when the report is made.</p>
+</body>
+</html>

@@ -57,12 +57,17 @@ class Report:
         return rows
 
 
-def build_report(doc: ExtractedDocument, results: list[CheckResult], job_provided: bool) -> Report:
-    """Assemble a Report for a checked document."""
+def build_report(
+    doc: ExtractedDocument,
+    results: list[CheckResult],
+    job_provided: bool,
+    source: str | None = None,
+) -> Report:
+    """Assemble a Report for a checked document (``source`` overrides the shown file name)."""
     parser_message = (
         f"Extracted {doc.word_count} words from {doc.file_type.upper()} ({doc.page_count} page(s))."
     )
-    return Report(doc.path.name, parser_message, results, job_provided)
+    return Report(source or doc.path.name, parser_message, results, job_provided)
 
 
 def keyword_lines(analysis: KeywordAnalysis) -> list[str]:
@@ -127,15 +132,32 @@ def render_markdown(report: Report) -> str:
     return "\n".join(lines)
 
 
-def render_html(report: Report) -> str:
+def _env() -> Environment:
+    return Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
+
+
+def render_form(error: str = "", job_text: str = "") -> str:
+    """Render the upload form of the local web UI (autoescaped)."""
+    return (
+        _env()
+        .get_template("index.html.j2")
+        .render(error=error, job_text=job_text, privacy_note=PRIVACY_NOTE)
+    )
+
+
+def render_html(report: Report, back_link: str | None = None) -> str:
     """Render the report as a standalone HTML page (autoescaped)."""
-    env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
-    return env.get_template("report.html.j2").render(
-        report=report,
-        counts={s.value: n for s, n in report.counts().items()},
-        rows=[(row.name, row.status.value, row.note) for row in report.summary_rows()],
-        results=[(r, _extra_lines(r)) for r in report.results],
-        disclaimer_sv=DISCLAIMER_SV,
-        disclaimer_en=DISCLAIMER_EN,
-        privacy_note=PRIVACY_NOTE,
+    return (
+        _env()
+        .get_template("report.html.j2")
+        .render(
+            back_link=back_link,
+            report=report,
+            counts={s.value: n for s, n in report.counts().items()},
+            rows=[(row.name, row.status.value, row.note) for row in report.summary_rows()],
+            results=[(r, _extra_lines(r)) for r in report.results],
+            disclaimer_sv=DISCLAIMER_SV,
+            disclaimer_en=DISCLAIMER_EN,
+            privacy_note=PRIVACY_NOTE,
+        )
     )

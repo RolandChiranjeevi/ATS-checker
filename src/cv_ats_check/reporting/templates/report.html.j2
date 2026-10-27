@@ -16,6 +16,7 @@
 </style>
 </head>
 <body>
+{% if back_link %}<p><a href="{{ back_link }}">&larr; Check another CV</a></p>{% endif %}
 <h1>CV ATS Check</h1>
 <p><strong>File:</strong> {{ report.source }}</p>
 <blockquote>{{ disclaimer_sv }}<br>{{ disclaimer_en }}</blockquote>

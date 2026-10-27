@@ -52,8 +52,9 @@ def check_readable_text(doc: ExtractedDocument, job: JobAd | None = None) -> Che
             "text extraction.",
         )
 
+    where = f" on {doc.page_count} page(s)" if doc.paginated else ""
     return CheckResult(
         NAME,
         Status.PASS,
-        f"Real text found: {doc.total_chars} characters on {doc.page_count} page(s).",
+        f"Real text found: {doc.total_chars} characters{where}.",
     )

@@ -45,6 +45,16 @@ def test_text_pdf_is_readable(fixtures_dir):
     assert result.status is Status.PASS
 
 
+def test_docx_messages_do_not_claim_a_page_count(fixtures_dir):
+    from cv_ats_check.checks import run_all_checks
+    from cv_ats_check.reporting import build_report
+
+    doc = extract_document(fixtures_dir / "cv_normal.docx")
+    assert "page" not in check_readable_text(doc).message
+    report = build_report(doc, run_all_checks(doc), job_provided=False)
+    assert "page" not in report.parser_message
+
+
 def test_scanned_pdf_fails_with_actionable_advice(fixtures_dir):
     result = check_readable_text(extract_document(fixtures_dir / "cv_scanned.pdf"))
     assert result.status is Status.FAIL

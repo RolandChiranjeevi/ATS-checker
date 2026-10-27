@@ -64,9 +64,8 @@ def build_report(
     source: str | None = None,
 ) -> Report:
     """Assemble a Report for a checked document (``source`` overrides the shown file name)."""
-    parser_message = (
-        f"Extracted {doc.word_count} words from {doc.file_type.upper()} ({doc.page_count} page(s))."
-    )
+    pages = f" ({doc.page_count} page(s))" if doc.paginated else ""
+    parser_message = f"Extracted {doc.word_count} words from {doc.file_type.upper()}{pages}."
     return Report(source or doc.path.name, parser_message, results, job_provided)
 
 

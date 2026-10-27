@@ -27,8 +27,10 @@ def check_length(doc: ExtractedDocument, job: JobAd | None = None) -> CheckResul
         return CheckResult(
             NAME,
             Status.WARN,
-            f"Short CV ({size}); there may not be enough text to match keywords.",
-            "Expand your experience bullets with tools used and measurable results.",
+            f"Short CV ({size}, below the {WARN_BELOW_WORDS}-word guideline); there may not be "
+            "enough text to match keywords.",
+            "If this is a deliberately concise CV, make sure tools and technologies are named in "
+            "a skills section; otherwise add tools used and measurable results to your bullets.",
         )
     if words > WARN_ABOVE_WORDS or (doc.paginated and doc.page_count > WARN_ABOVE_PAGES):
         return CheckResult(

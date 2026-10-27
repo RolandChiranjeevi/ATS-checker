@@ -29,7 +29,8 @@ NOISE_WORDS = frozenset(
     work working works looking join offer offers including include well new want need must plus
     years year least preferably required requirements responsibilities opportunity position
     candidate candidates ideal knowledge skills skill understanding using use used based help
-    ensure nice build maintain support environment passionate world erfarenhet erfarenheter arbeta arbetar arbete
+    ensure nice build maintain support environment environments clear analytical qualifications
+    qualification evaluate results report passionate world erfarenhet erfarenheter arbeta arbetar arbete
     arbetet roll rollen företag företaget söker tjänst tjänsten ansök ansökan meriterande goda god
     bra stark starkt kunskap kunskaper förståelse använda användning år minst gärna krav
     kvalifikationer ansvar möjlighet kandidat kandidater uppdrag miljö stöd sätt nya ny nytt""".split()

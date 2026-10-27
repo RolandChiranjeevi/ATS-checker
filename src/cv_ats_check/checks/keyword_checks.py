@@ -36,14 +36,20 @@ def check_keyword_match(doc: ExtractedDocument, job: JobAd | None = None) -> Che
     if analysis.job_language != analysis.cv_language:
         message += (
             f" The ad looks {analysis.job_language.upper()} but the CV looks "
-            f"{analysis.cv_language.upper()}; matching is literal, so terms in the other language "
-            "count as missing."
+            f"{analysis.cv_language.upper()}; common testing/IT terms are matched across Swedish "
+            "and English, other terms must match literally."
         )
-    suggestion = ""
+    advice = []
     if analysis.missing:
-        suggestion = (
+        advice.append(
             "Add the missing terms you genuinely have experience with, using the ad's wording."
         )
+    if analysis.job_language != analysis.cv_language:
+        advice.append(
+            f"Consider a {analysis.job_language.upper()} version of the CV for this ad; an ATS "
+            "matches the exact words in the document."
+        )
+    suggestion = " ".join(advice)
     return CheckResult(MATCH_NAME, status, message, suggestion, details={"analysis": analysis})
 
 

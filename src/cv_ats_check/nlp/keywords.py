@@ -8,7 +8,9 @@ Method (no ML, no external services):
    "requirements" section. Score = count (+ half the requirement-section count)
    x weight (tech x3, multi-word x1.5).
 4. Drop a phrase when a longer kept phrase always contains it.
-5. Count each keyword in the CV with the same normalisation.
+5. Count each keyword in the CV with the same normalisation. Keywords that belong to a
+   Swedish/English equivalence group (``nlp/aliases.py``) also count their translations and
+   Swedish compound forms, so "test automation" matches "testautomatisering".
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass, replace
 
+from cv_ats_check.nlp.aliases import ALIAS_GROUPS
 from cv_ats_check.nlp.normalize import stem, tokenize
 from cv_ats_check.nlp.stopwords import STOPWORDS, detect_language
 
@@ -205,6 +208,72 @@ def count_sequence(haystack: list[str], needle: tuple[str, ...]) -> int:
 _SEGMENT_RE = re.compile(r"[\n\r,;:!?()•]+|\.(?=\s|$)")
 
 
+@dataclass(frozen=True)
+class _AliasGroup:
+    """One compiled equivalence group (see ``nlp/aliases.py``)."""
+
+    phrases: tuple[tuple[str, ...], ...]  # exact multi-word variants (stemmed)
+    singles: frozenset[str]  # exact one-word variants (stemmed)
+    prefixes: tuple[str, ...]
+    suffixes: tuple[str, ...]
+
+
+def _compile_group(variants: tuple[str, ...]) -> tuple[_AliasGroup, list[tuple[str, ...]]]:
+    phrases: list[tuple[str, ...]] = []
+    singles: set[str] = set()
+    prefixes: list[str] = []
+    suffixes: list[str] = []
+    exact: list[tuple[str, ...]] = []
+    for variant in variants:
+        if variant.startswith("*"):
+            suffixes.append(variant[1:])
+        elif variant.endswith("*"):
+            prefixes.append(variant[:-1])
+        else:
+            key = tuple(stem(t) for t in tokenize(variant))
+            exact.append(key)
+            if len(key) == 1:
+                singles.add(key[0])
+            else:
+                phrases.append(key)
+    group = _AliasGroup(tuple(phrases), frozenset(singles), tuple(prefixes), tuple(suffixes))
+    return group, exact
+
+
+def _build_alias_index() -> dict[tuple[str, ...], list[_AliasGroup]]:
+    index: dict[tuple[str, ...], list[_AliasGroup]] = {}
+    for variants in ALIAS_GROUPS:
+        group, exact = _compile_group(variants)
+        for key in exact:
+            index.setdefault(key, []).append(group)
+    return index
+
+
+_ALIAS_INDEX = _build_alias_index()
+
+
+def _count_group(raw: list[str], keys: list[str], group: _AliasGroup) -> int:
+    """Occurrences of any variant; a single word is counted once even if several match."""
+    total = sum(count_sequence(keys, phrase) for phrase in group.phrases)
+    for token, key in zip(raw, keys, strict=True):
+        if (
+            key in group.singles
+            or any(token.startswith(p) and len(token) > len(p) for p in group.prefixes)
+            or any(token.endswith(s) and len(token) > len(s) for s in group.suffixes)
+        ):
+            total += 1
+    return total
+
+
+def count_with_aliases(raw: list[str], keys: list[str], needle: tuple[str, ...]) -> int:
+    """Count ``needle`` in the CV, including every equivalent variant (sv/en) of its group."""
+    literal = count_sequence(keys, needle)
+    groups = _ALIAS_INDEX.get(needle)
+    if not groups:
+        return literal
+    return max(literal, sum(_count_group(raw, keys, group) for group in groups))
+
+
 def _is_heading(norm: str, vocabulary: tuple[str, ...]) -> bool:
     return len(norm.split()) <= 6 and any(norm.startswith(h) for h in vocabulary)
 
@@ -292,14 +361,15 @@ def extract_job_keywords(job_text: str, max_keywords: int = MAX_KEYWORDS) -> lis
 
 def analyze_keywords(cv_text: str, job_text: str) -> KeywordAnalysis:
     """Compare CV text against a job ad: found, missing and over-repeated keywords."""
-    cv_keys = [stem(t) for t in tokenize(cv_text)]
+    cv_raw = tokenize(cv_text)
+    cv_keys = [stem(t) for t in cv_raw]
     cv_words = len(cv_text.split())
     threshold = frequency_threshold(cv_words)
 
     found: list[Keyword] = []
     missing: list[Keyword] = []
     for keyword in extract_job_keywords(job_text):
-        keyword = replace(keyword, cv_count=count_sequence(cv_keys, keyword.keys))
+        keyword = replace(keyword, cv_count=count_with_aliases(cv_raw, cv_keys, keyword.keys))
         (found if keyword.cv_count else missing).append(keyword)
 
     frequent = sorted(

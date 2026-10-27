@@ -11,10 +11,13 @@ _TOKEN_RE = re.compile(r"[^\W_][\w+#]*(?:[./][^\W_][\w+#]*)*")
 _DASH_RE = re.compile(r"[‐-―-]")
 
 
+_CONTRACTION_RE = re.compile(r"n['’]t\b|['’](?:ll|re|ve|s|d|m)\b")  # you'll, don't, it's
+
+
 def normalize_text(text: str) -> str:
-    """NFC-normalise, case-fold and turn dashes into spaces."""
+    """NFC-normalise, case-fold, drop English contractions and turn dashes into spaces."""
     text = unicodedata.normalize("NFC", text).casefold().replace(" ", " ")
-    return _DASH_RE.sub(" ", text)
+    return _DASH_RE.sub(" ", _CONTRACTION_RE.sub("", text))
 
 
 def tokenize(text: str) -> list[str]:

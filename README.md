@@ -15,6 +15,10 @@ with its own tests.
 | Check | What it looks at |
 |---|---|
 | Readable text | Real text layer vs. scanned/image-only pages, garbled characters |
+| Layout | Multi-column pages (gutter detection), tables, photos/large images |
+| Header/footer content | DOCX only: name or contact details that exist only in the Word header/footer |
+| Special characters | Icon-font glyphs (Font Awesome etc.) and invisible characters |
+| Document hygiene | An itemised list, always shown: file name, title and author properties (vs. the name in the CV), file size, page format (A4/Letter), creating tool (e.g. Canva), last modified, links by host (shortened links flagged), PDF encryption/restrictions |
 | Contact details | Name, e-mail, phone (as literal text), LinkedIn/GitHub |
 | Section headings | Summary/Profil, Skills/Kompetenser, Experience/Arbetslivserfarenhet, Education/Utbildning, Projects/Projekt: missing, duplicated or not visually distinct |
 | Date consistency | Mixed formats (`2023–2025` vs `Jan 2023 - Mar 2025`), mixed dashes, ambiguous `2023/2025` |

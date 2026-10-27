@@ -35,6 +35,8 @@ class TextBlock:
     size: float | None = None
     bold: bool = False
     heading_style: bool = False  # True for DOCX "Heading N" / "Title" paragraphs
+    bbox: tuple[float, float, float, float] | None = None  # (x0, y0, x1, y1) in PDF points
+    region: str = "body"  # "header" / "footer" for DOCX header and footer text
 
 
 @dataclass(frozen=True)
@@ -44,6 +46,9 @@ class PageInfo:
     number: int
     char_count: int
     image_count: int
+    width: float = 0.0  # page size in PDF points (0 when unknown, e.g. DOCX)
+    height: float = 0.0
+    image_area_ratio: float = 0.0  # share of the page covered by images
 
 
 @dataclass
@@ -57,6 +62,14 @@ class ExtractedDocument:
     blocks: list[TextBlock]
     links: list[str] = field(default_factory=list)
     paginated: bool = True  # DOCX has no fixed pagination
+    metadata: dict[str, str] = field(default_factory=dict)  # title, author, ...
+    file_size: int = 0  # bytes
+    table_count: int = 0
+    display_name: str = ""  # original file name (differs from path for uploads)
+
+    @property
+    def name(self) -> str:
+        return self.display_name or self.path.name
 
     @property
     def page_count(self) -> int:
@@ -86,6 +99,17 @@ class JobAd:
     text: str
 
 
+@dataclass(frozen=True)
+class Fact:
+    """One itemised observation shown under a check (what was looked at, and how it fared)."""
+
+    label: str
+    value: str
+    status: Status | None = None  # None = informational only
+    note: str = ""
+    links: tuple[str, ...] = ()  # safe, clickable URLs (http, https, mailto) shown with the fact
+
+
 @dataclass
 class CheckResult:
     """The verdict of one check, with an explanation and a concrete fix."""
@@ -95,3 +119,4 @@ class CheckResult:
     message: str
     suggestion: str = ""
     details: dict[str, Any] = field(default_factory=dict)
+    facts: list[Fact] = field(default_factory=list)

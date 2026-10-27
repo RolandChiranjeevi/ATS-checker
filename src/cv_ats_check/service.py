@@ -32,5 +32,6 @@ def run_check(cv_path: Path, job: JobAd | None, source: str | None = None) -> Re
     Raises an ``ExtractionError`` subclass if the CV cannot be read.
     """
     doc = extract_document(cv_path)
+    doc.display_name = source or cv_path.name
     results = run_all_checks(doc, job)
     return build_report(doc, results, job_provided=job is not None, source=source)

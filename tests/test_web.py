@@ -26,6 +26,10 @@ def post_cv(client, path: Path, *, filename: str | None = None, job_text: str = 
     return client.post("/check", data=data, content_type="multipart/form-data", **kwargs)
 
 
+def test_links_do_not_leak_the_local_address_as_referrer(client):
+    assert client.get("/").headers["Referrer-Policy"] == "no-referrer"
+
+
 def test_index_serves_the_form_with_security_headers(client):
     response = client.get("/")
     assert response.status_code == 200

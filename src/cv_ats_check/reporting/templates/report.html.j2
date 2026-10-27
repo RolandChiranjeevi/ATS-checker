@@ -18,6 +18,12 @@
   details.ats-view summary { cursor: pointer; font-weight: 600; }
   pre.ats-text { white-space: pre-wrap; word-break: break-word; background: #f6f6f6; padding: .75rem 1rem; border-radius: .3rem; font-size: .85rem; }
   .page-label { font-weight: 600; margin: 1rem 0 .25rem; }
+  .INFO { background: #57606a; }
+  table.facts { border-collapse: collapse; width: 100%; font-size: .9rem; margin: .5rem 0; }
+  table.facts th, table.facts td { text-align: left; vertical-align: top; padding: .35rem .5rem; border-bottom: 1px solid #ddd; }
+  table.facts td { word-break: break-word; }
+  table.facts ul.links { margin: .35rem 0 0; padding-left: 1.1rem; }
+  table.facts ul.links a { color: #0969da; }
 </style>
 </head>
 <body>
@@ -46,6 +52,17 @@
   <p><span class="badge {{ r.status.value }}">{{ r.status.value }}</span> {{ r.message }}</p>
   {% if r.suggestion %}<p><strong>Suggestion:</strong> {{ r.suggestion }}</p>{% endif %}
   {% for line in extra %}<p class="extra">{{ line }}</p>{% endfor %}
+  {% if r.facts %}
+  <table class="facts">
+    <thead><tr><th>Item</th><th>Value</th><th>Status</th><th>Note</th></tr></thead>
+    <tbody>
+    {% for f in r.facts %}
+      {% set label = f.status.value if f.status else "INFO" %}
+      <tr><td>{{ f.label }}</td><td>{{ f.value }}{% if f.links %}<ul class="links">{% for url in f.links %}<li><a href="{{ url }}" target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer">{{ url }}</a></li>{% endfor %}</ul>{% endif %}</td><td><span class="badge {{ label }}">{{ label }}</span></td><td>{{ f.note }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
 </section>
 {% endfor %}
 

@@ -141,6 +141,13 @@ def render_markdown(report: Report) -> str:
         if extra:
             lines.append("")
             lines += [f"{line}  " for line in extra]
+        if r.facts:
+            lines += ["", "Checked:"]
+            for fact in r.facts:
+                label = fact.status.value if fact.status else "INFO"
+                note = f" ({fact.note})" if fact.note else ""
+                lines.append(f"- {fact.label}: {fact.value} – {label}{note}")
+                lines += [f"  - <{url}>" for url in fact.links]
         lines.append("")
     lines += ["## Disclaimer", DISCLAIMER_SV, "", DISCLAIMER_EN, "", f"_{PRIVACY_NOTE}_", ""]
     return "\n".join(lines)

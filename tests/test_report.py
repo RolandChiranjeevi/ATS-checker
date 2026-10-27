@@ -128,6 +128,61 @@ def _decode(data_url: str) -> str:
     return base64.b64decode(data_url.split("base64,", 1)[1]).decode()
 
 
+def test_markdown_lists_the_checked_hygiene_items(report):
+    md = render_markdown(report)
+    section = md[md.index("### Document hygiene") :]
+    assert "Checked:" in section
+    assert "- File name: cv_normal_en.pdf – PASS" in section
+    assert "- Author property: Anna Testsson – PASS (Matches the name in the CV.)" in section
+    assert "- Encryption: none – PASS" in section
+
+
+def test_html_renders_facts_as_a_table_with_info_badges(report):
+    html = render_html(report)
+    assert '<table class="facts">' in html
+    assert '<span class="badge INFO">INFO</span>' in html
+    assert "<td>File name</td><td>cv_normal_en.pdf</td>" in html
+
+
+def test_facts_values_are_escaped():
+    from cv_ats_check.checks.hygiene_checks import check_hygiene
+
+    doc = make_doc(["Anna Testsson"])
+    doc.display_name = "<img src=x onerror=alert(1)>.pdf"
+    html = render_html(build_report(doc, [check_hygiene(doc)], job_provided=False))
+    assert "<img src=x" not in html
+    assert "&lt;img src=x" in html
+
+
+def _report_with_links(*links: str):
+    from cv_ats_check.checks.hygiene_checks import check_hygiene
+
+    doc = make_doc(["Anna Testsson"])
+    doc.display_name = "Anna_Testsson_CV.pdf"
+    doc.links = list(links)
+    return build_report(doc, [check_hygiene(doc)], job_provided=False)
+
+
+def test_html_links_are_clickable_and_hardened():
+    html = render_html(_report_with_links("https://www.linkedin.com/in/anna?a=1&b=2"))
+    assert 'href="https://www.linkedin.com/in/anna?a=1&amp;b=2"' in html
+    assert 'target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer"' in html
+
+
+def test_markdown_lists_links_as_autolinks():
+    md = render_markdown(_report_with_links("https://github.com/anna", "mailto:anna@example.com"))
+    assert "  - <https://github.com/anna>" in md
+    assert "  - <mailto:anna@example.com>" in md
+
+
+def test_unsafe_links_never_become_href():
+    report = _report_with_links("javascript:alert(1)", "https://github.com/anna")
+    html, md = render_html(report), render_markdown(report)
+    assert 'href="javascript:' not in html and "<javascript:" not in md
+    assert 'href="https://github.com/anna"' in html
+    assert "1 unsupported link(s)" in html
+
+
 def test_html_has_status_badges(report):
     html = render_html(report)
     assert 'class="badge PASS"' in html

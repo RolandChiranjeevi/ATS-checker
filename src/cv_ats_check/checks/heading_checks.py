@@ -72,6 +72,11 @@ def normalize_heading(text: str) -> str:
     return re.sub(r"\s+", " ", text.casefold().strip(" :.-–—•|*#\t"))
 
 
+def heading_section(text: str) -> str | None:
+    """The canonical section ("experience", "education", ...) a heading line names, if any."""
+    return _LOOKUP.get(normalize_heading(text))
+
+
 def is_section_heading_text(text: str) -> bool:
     """True if the line, taken alone, is one of the known section names."""
     return normalize_heading(text) in _LOOKUP

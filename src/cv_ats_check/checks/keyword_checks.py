@@ -25,7 +25,7 @@ def check_keyword_match(doc: ExtractedDocument, job: JobAd | None = None) -> Che
             details={"analysis": analysis},
         )
 
-    pct = analysis.match_pct
+    pct = analysis.score_pct
     status = (
         Status.PASS if pct >= PASS_AT_PCT else Status.WARN if pct >= WARN_AT_PCT else Status.FAIL
     )
@@ -33,6 +33,14 @@ def check_keyword_match(doc: ExtractedDocument, job: JobAd | None = None) -> Che
         f"{len(analysis.found)} of {analysis.total} keywords from the job ad appear in the CV "
         f"({pct}%)."
     )
+    if analysis.has_tiers:
+        counts = analysis.tier_counts()
+        labels = {"must": "must-have", "general": "other", "nice": "nice-to-have"}
+        parts = [f"{labels[t]} {f}/{n}" for t, (f, n) in counts.items() if n]
+        message += (
+            " The score weights must-have terms x3, other terms x2 and nice-to-have x1 "
+            f"({', '.join(parts)})."
+        )
     if analysis.job_language != analysis.cv_language:
         message += (
             f" The ad looks {analysis.job_language.upper()} but the CV looks "

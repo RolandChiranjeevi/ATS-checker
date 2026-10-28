@@ -7,6 +7,7 @@ from cv_ats_check.checks.contact_checks import check_contact_details
 from cv_ats_check.checks.date_checks import check_dates
 from cv_ats_check.checks.heading_checks import check_headings
 from cv_ats_check.checks.hygiene_checks import check_hygiene
+from cv_ats_check.checks.jobad_checks import check_job_requirements
 from cv_ats_check.checks.keyword_checks import check_keyword_match, check_keyword_repetition
 from cv_ats_check.checks.layout_checks import (
     check_header_footer,
@@ -29,6 +30,7 @@ ALL_CHECKS: tuple[CheckFn, ...] = (
     check_hygiene,
     check_keyword_match,
     check_keyword_repetition,
+    check_job_requirements,
 )
 
 

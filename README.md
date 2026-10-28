@@ -23,7 +23,8 @@ with its own tests.
 | Section headings | Summary/Profil, Skills/Kompetenser, Experience/Arbetslivserfarenhet, Education/Utbildning, Projects/Projekt: missing, duplicated or not visually distinct |
 | Date consistency | Mixed formats (`2023–2025` vs `Jan 2023 - Mar 2025`), mixed dashes, ambiguous `2023/2025` |
 | Length and density | Extremely short or long CVs |
-| Job keyword match | Keywords from the ad that are found / missing in the CV (Swedish and English) |
+| Job keyword match | Keywords from the ad that are found / missing in the CV (Swedish and English). The score is weighted: must-have terms ×3, other ×2, nice-to-have ×1, and missing must-haves are listed separately |
+| Job ad requirements | What the ad explicitly asks for: years of experience (compared with the span of your dated roles), languages (and whether your CV mentions them), remote/hybrid/on-site, location and degree. Shown as an itemised list, quoting the ad |
 | Keyword repetition | Keywords repeated more than a length-scaled limit (over-optimisation) |
 
 ## What it does not do
@@ -124,8 +125,14 @@ in `checks/__init__.py`.
 3. Keep a phrase if it is a tech term, repeats, or sits under a "requirements" heading; rank by
    count × weight (tech ×3, multi-word ×1.5).
 4. Drop phrases always contained in a longer kept phrase.
-5. Match % = keywords found in the CV / keywords extracted from the ad.
-6. Repetition limit = `max(10, ceil(1.2 % of the CV's word count))`.
+5. Each keyword gets a tier from where it appears in the ad: under a requirements heading
+   (*Requirements*, *Krav*, *You have*, ...) it is must-have, under *Nice to have* /
+   *Meriterande* or on a line saying "is a plus" / "en fördel" it is nice-to-have, otherwise
+   general. Equivalent Swedish/English terms (`nlp/aliases.py`, incl. Swedish endings such as
+   *testet*, *testningen*, *kvaliteten*) are counted together.
+6. Score % = weighted share of keywords found (must-have ×3, general ×2, nice-to-have ×1). PASS at
+   60 %, WARN from 30 %. The plain share is still available as `match_pct`.
+7. Repetition limit = `max(10, ceil(1.2 % of the CV's word count))`.
 
 ## Test strategy
 

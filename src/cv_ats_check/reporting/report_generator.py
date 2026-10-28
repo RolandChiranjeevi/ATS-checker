@@ -54,7 +54,7 @@ class Report:
         rows = [SummaryRow("Parser status", self.parser_status)]
         for r in self.results:
             analysis = r.details.get("analysis")
-            note = f"{analysis.match_pct}%" if r.name == MATCH_NAME and analysis else ""
+            note = f"{analysis.score_pct}%" if r.name == MATCH_NAME and analysis else ""
             rows.append(SummaryRow(r.name, r.status, note))
         if not self.job_provided:
             rows.append(SummaryRow("Job keyword match", Status.PASS, "not run (no --job given)"))
@@ -91,11 +91,19 @@ def keyword_lines(analysis: KeywordAnalysis) -> list[str]:
         return ", ".join(k.term for k in keywords) or "-"
 
     frequent = ", ".join(f"{k.term} ({k.cv_count} times)" for k in analysis.frequent) or "-"
-    return [
+    lines = [
         f"Found: {terms(analysis.found)}",
         f"Missing: {terms(analysis.missing)}",
         f"Frequent: {frequent}",
     ]
+    if analysis.has_tiers:
+        missing_must = [k for k in analysis.missing if k.tier == "must"]
+        missing_nice = [k for k in analysis.missing if k.tier == "nice"]
+        lines += [
+            f"Missing must-have: {terms(missing_must)}",
+            f"Missing nice-to-have: {terms(missing_nice)}",
+        ]
+    return lines
 
 
 def _extra_lines(result: CheckResult) -> list[str]:

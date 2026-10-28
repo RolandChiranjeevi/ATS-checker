@@ -86,6 +86,45 @@ def test_contraction_fragments_are_not_keywords():
     assert "selenium" in keywords
 
 
+@pytest.mark.parametrize(
+    ("job_term", "cv_text"),
+    [
+        ("testing", "Jag har testat och testar webbapplikationer"),
+        ("testing", "Testerna kördes varje natt"),
+        ("testing", "Testningen tog två dagar"),
+        ("quality", "Kvaliteten är viktig"),
+        ("project", "Projektet levererades"),
+        ("documentation", "Dokumentationen uppdaterades"),
+        ("database", "Databaserna migrerades"),
+        ("agile", "Vi arbetar agilt"),
+        ("kvalitet", "quality"),
+        ("testning", "testing"),
+        ("projektet", "project"),
+    ],
+)
+def test_swedish_inflections_match_across_languages(job_term, cv_text):
+    assert job_term in terms(analyze(job_term, cv_text).found)
+
+
+@pytest.mark.parametrize(
+    ("job_term", "cv_text"),
+    [
+        ("testing", "Han var en testimonial"),
+        ("testing", "attestering av fakturor"),
+        ("quality", "kvalificerad"),
+        ("project", "projektil"),
+        ("database", "datastruktur"),
+    ],
+)
+def test_words_that_only_look_similar_do_not_inflect_into_a_match(job_term, cv_text):
+    assert job_term in terms(analyze(job_term, cv_text).missing)
+
+
+def test_inflected_forms_are_counted_once_each():
+    analysis = analyze("testing", "test tester testning")
+    assert analysis.found[0].cv_count == 3
+
+
 def test_generic_adjectives_are_not_keywords():
     ad = "Requirements\n- Clear analytical thinking and relevant qualifications\n- Selenium\n"
     keywords = terms(extract_job_keywords(ad))

@@ -8,16 +8,52 @@ Variant syntax:
   ``"test automation"``   exact word or phrase (plural ``s`` is folded as usual)
   ``"agil*"``             any longer word that starts with ``agil`` (agilitet, agilt, ...)
   ``"*testare"``          any longer word that ends with ``testare`` (mjukvarutestare, ...)
+  ``"test+"``             the stem plus a Swedish/English ending from ``INFLECTIONS``
+                          (test, testet, tester, testning, testare, testing, tested, ...)
 
 Prefix/suffix variants only count compound words, never the bare word, and are not used to
-find the group of a job-ad keyword. Keep suffixes specific: ``*test`` would match "attest".
+find the group of a job-ad keyword. Inflected (``+``) variants are used on both sides. Keep
+suffixes specific: ``*test`` would match "attest".
 """
 
 from __future__ import annotations
 
+# Endings that may follow an inflected stem. Deliberately short; "testimony" must not match "test+".
+INFLECTIONS = (
+    "",
+    "a",
+    "e",
+    "n",
+    "t",
+    "s",
+    "en",
+    "et",
+    "er",
+    "ar",
+    "or",
+    "na",
+    "ed",
+    "ing",
+    "ings",
+    "erna",
+    "arna",
+    "orna",
+    "ning",
+    "ningen",
+    "ningar",
+    "are",
+    "aren",
+    "ade",
+    "at",
+    "ad",
+    "ande",
+    "ens",
+    "ets",
+)
+
 ALIAS_GROUPS: tuple[tuple[str, ...], ...] = (
     # testing in general
-    ("testing", "test", "testning", "tester", "testare", "*testare", "*testning", "*testing"),
+    ("test+", "*testare", "*testning", "*testing"),
     (
         "test automation",
         "automated testing",
@@ -52,10 +88,10 @@ ALIAS_GROUPS: tuple[tuple[str, ...], ...] = (
     ("exploratory testing", "utforskande testning", "utforskande tester"),
     # quality
     ("quality assurance", "qa", "kvalitetssäkring", "kvalitetskontroll", "kvalitetssäkr*"),
-    ("quality", "kvalitet", "kvalitets*"),
+    ("quality", "kvalitet+"),
     ("bug", "bugs", "defect", "defects", "bugg", "buggar", "defekt", "defekter"),
     # ways of working
-    ("agile", "agil", "agila", "agilt", "agila metoder", "agil*"),
+    ("agile", "agil+", "agila metoder", "agil*"),
     (
         "cross functional",
         "cross-functional",
@@ -63,10 +99,10 @@ ALIAS_GROUPS: tuple[tuple[str, ...], ...] = (
         "tvärfunktionella",
         "tvärfunktionell*",
     ),
-    ("project", "projekt", "projekt*"),
+    ("project", "projects", "projekt+"),
     ("stakeholder", "stakeholders", "intressent", "intressenter"),
     ("communication", "kommunikation", "kommunikations*"),
-    ("documentation", "dokumentation", "dokumentation*"),
+    ("documentation", "dokumentation+"),
     # tech
     (
         "software",
@@ -79,5 +115,5 @@ ALIAS_GROUPS: tuple[tuple[str, ...], ...] = (
     ),
     ("developer", "developers", "utvecklare", "*utvecklare"),
     ("development", "utveckling", "*utveckling"),
-    ("database", "databas", "databaser", "databas*"),
+    ("database", "databases", "databas+"),
 )

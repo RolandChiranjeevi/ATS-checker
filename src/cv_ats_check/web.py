@@ -70,7 +70,10 @@ def create_app() -> Flask:
         response.headers["Content-Security-Policy"] = _CSP
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Cache-Control"] = "no-store"
-        response.headers["Referrer-Policy"] = "no-referrer"
+        # "same-origin" keeps the local address from leaking to sites a report link opens, but
+        # unlike "no-referrer" it still lets browsers send a real Origin on form posts. With
+        # "no-referrer" they send "Origin: null" and the cross-site check below rejects the form.
+        response.headers["Referrer-Policy"] = "same-origin"
         return response
 
     @app.errorhandler(413)

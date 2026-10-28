@@ -5,6 +5,9 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+.hypothesis/
+mutants/
+.DS_Store
 build/
 dist/
 # generated reports (may contain details about a real CV)

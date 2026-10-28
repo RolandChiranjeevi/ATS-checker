@@ -26,8 +26,15 @@ def post_cv(client, path: Path, *, filename: str | None = None, job_text: str = 
     return client.post("/check", data=data, content_type="multipart/form-data", **kwargs)
 
 
-def test_links_do_not_leak_the_local_address_as_referrer(client):
-    assert client.get("/").headers["Referrer-Policy"] == "no-referrer"
+def test_referrer_policy_hides_the_local_address_but_keeps_form_origins_working(client):
+    # "no-referrer" would make browsers send "Origin: null" on form posts (a real bug, found by
+    # the Playwright tests), so the policy must be same-origin.
+    assert client.get("/").headers["Referrer-Policy"] == "same-origin"
+
+
+def test_a_null_origin_post_is_rejected(client, fixtures_dir):
+    response = post_cv(client, fixtures_dir / "cv_normal_en.pdf", headers={"Origin": "null"})
+    assert response.status_code == 403
 
 
 def test_index_serves_the_form_with_security_headers(client):

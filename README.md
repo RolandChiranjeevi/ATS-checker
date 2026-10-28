@@ -143,11 +143,24 @@ in `checks/__init__.py`.
 - Parametrised tests for date formats, phone numbers, section-name synonyms and length limits.
 - Keyword matching is tested with Swedish and English job ads.
 - CLI end-to-end tests check exit codes and generated reports; HTML output is checked for escaping.
-- CI (`.github/workflows/ci.yml`): `ruff check`, `ruff format --check` and `pytest --cov` on
-  Python 3.11 and 3.12 for every push and pull request.
+- **Property-based tests** (`tests/test_properties.py`, Hypothesis): rules that must hold for any
+  input, e.g. tokens are always clean, a repeated needle is counted exactly, every Swedish mobile
+  number is found whatever thin/narrow space or dash separates its digits, year ranges are never
+  phone numbers, mixing date styles always warns.
+- **End-to-end tests** (`tests/test_e2e_web.py`, Playwright + Chromium): the real server in a real
+  browser: upload, report, extracted-text view, real file downloads, error pages, hostile file
+  names, links, security headers and no sideways scrolling on phones. These found a real bug the
+  Flask test client could not: `Referrer-Policy: no-referrer` makes browsers send `Origin: null`,
+  which the cross-site check rejected, so every form post returned 403.
+- **Mutation testing** (`mutmut`, scoped to the pure logic modules in `pyproject.toml`): shows
+  whether the tests would notice a deliberate bug. `pip install -e ".[mutation]" && mutmut run`.
+- CI (`.github/workflows/ci.yml`): `ruff check`, `ruff format --check` and `pytest --cov` (incl.
+  the browser tests) on Python 3.11 and 3.12 for every push and pull request.
 
 ```bash
+playwright install chromium            # once, for the browser tests
 ruff check . && ruff format --check . && pytest --cov=cv_ats_check
+pytest -m "not e2e"                    # without the browser tests
 ```
 
 ## Roadmap

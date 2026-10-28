@@ -64,6 +64,17 @@ def _all_paragraphs(document) -> list[tuple[Paragraph, str]]:
     return headers + body + footers
 
 
+def _column_count(document) -> int:
+    """The widest section layout (``<w:cols w:num="2">``); a malformed value counts as 1."""
+    widest = 1
+    for cols in document.element.iter(qn("w:cols")):
+        try:
+            widest = max(widest, int(cols.get(qn("w:num"), 1)))
+        except ValueError:
+            continue
+    return widest
+
+
 def extract_docx(path: Path) -> ExtractedDocument:
     """Extract text (incl. text boxes, headers and footers), tables and metadata from a DOCX."""
     try:
@@ -96,4 +107,5 @@ def extract_docx(path: Path) -> ExtractedDocument:
         },
         file_size=path.stat().st_size,
         table_count=sum(1 for _ in document.element.body.iter(qn("w:tbl"))),
+        column_count=_column_count(document),
     )

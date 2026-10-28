@@ -57,6 +57,10 @@ def check_layout(doc: ExtractedDocument, job: JobAd | None = None) -> CheckResul
     problems: list[str] = []
     suggestions: list[str] = []
 
+    column_advice = (
+        "Use a single column: parsers read line by line across the page and can mix "
+        "the columns together. Check 'What an ATS sees' to see the resulting order."
+    )
     if doc.file_type == "pdf":
         column_pages = [
             page.number
@@ -66,10 +70,11 @@ def check_layout(doc: ExtractedDocument, job: JobAd | None = None) -> CheckResul
         if column_pages:
             pages = ", ".join(map(str, column_pages))
             problems.append(f"multi-column layout on page(s) {pages}")
-            suggestions.append(
-                "Use a single column: parsers read line by line across the page and can mix "
-                "the columns together. Check 'What an ATS sees' to see the resulting order."
-            )
+            suggestions.append(column_advice)
+
+    if doc.column_count > 1:  # a Word section set to several columns
+        problems.append(f"{doc.column_count}-column section layout")
+        suggestions.append(column_advice)
 
     if doc.table_count:
         problems.append(f"{doc.table_count} table(s)")

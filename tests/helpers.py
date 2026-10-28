@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pymupdf
 from docx import Document
+from docx.oxml.ns import qn
 from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.pdfencrypt import StandardEncryption
@@ -148,9 +149,18 @@ def make_docx(
     *,
     table: bool = False,
     header_text: str | None = None,
+    columns: int = 1,
+    columns_attribute: str | None = None,
 ) -> Path:
-    """Write a DOCX where headings use real 'Heading 1' styles."""
+    """Write a DOCX where headings use real 'Heading 1' styles.
+
+    ``columns`` sets the section to that many text columns; ``columns_attribute`` writes a raw
+    (possibly malformed) ``w:num`` value instead.
+    """
     document = Document()
+    if columns > 1 or columns_attribute is not None:
+        cols = document.sections[0]._sectPr.find(qn("w:cols"))
+        cols.set(qn("w:num"), columns_attribute or str(columns))
     name = next((text for style, text in lines if style == "name"), None)
     if name:
         document.core_properties.author = name
@@ -316,6 +326,8 @@ def build_all(directory: Path = FIXTURES_DIR) -> None:
         make_pdf(target, cv_lines(), photo=True)
     if target := missing("cv_owner_protected.pdf"):
         make_pdf(target, cv_lines(), encrypt=True)
+    if target := missing("cv_two_column.docx"):
+        make_docx(target, cv_lines(), columns=2)
     if target := missing("cv_table.docx"):
         make_docx(target, cv_lines(), table=True)
     if target := missing("cv_header_contact.docx"):

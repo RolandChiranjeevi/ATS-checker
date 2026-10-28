@@ -66,6 +66,7 @@ class ExtractedDocument:
     file_size: int = 0  # bytes
     table_count: int = 0
     display_name: str = ""  # original file name (differs from path for uploads)
+    column_count: int = 1  # most columns the text flows through in any section (DOCX only)
 
     @property
     def name(self) -> str:

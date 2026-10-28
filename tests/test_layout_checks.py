@@ -65,6 +65,31 @@ def test_columns_that_do_not_share_vertical_space_are_not_columns():
     assert find_columns(top_left + bottom_right, 595) is None
 
 
+def test_a_docx_section_with_two_columns_is_flagged(fixtures_dir):
+    doc = extract_document(fixtures_dir / "cv_two_column.docx")
+    result = check_layout(doc)
+    assert doc.column_count == 2
+    assert result.status is Status.WARN
+    assert "2-column section layout" in result.message
+    assert "single column" in result.suggestion
+
+
+def test_single_column_documents_report_one_column(fixtures_dir):
+    assert extract_document(fixtures_dir / "cv_normal.docx").column_count == 1
+    assert extract_document(fixtures_dir / "cv_normal_en.pdf").column_count == 1
+
+
+def test_the_widest_section_decides_and_a_malformed_value_is_ignored(tmp_path):
+    from tests.helpers import cv_lines, make_docx
+
+    wide = make_docx(tmp_path / "wide.docx", cv_lines(), columns=3)
+    assert extract_document(wide).column_count == 3
+    broken = make_docx(tmp_path / "broken.docx", cv_lines(), columns_attribute="many")
+    doc = extract_document(broken)
+    assert doc.column_count == 1
+    assert check_layout(doc).status is Status.PASS
+
+
 # --- tables and images ----------------------------------------------------------------------
 
 

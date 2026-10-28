@@ -5,67 +5,108 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>CV ATS Check</title>
+{% if logo %}<link rel="icon" type="image/svg+xml" href="{{ logo }}">{% endif %}
 <style>
   :root {
     color-scheme: light dark;
     --bg: #f6f8fa; --surface: #ffffff; --text: #1f2328; --muted: #59636e; --border: #d1d9e0;
-    --fail: #cf222e; --fail-soft: #ffebe9; --accent: #0969da; --accent-text: #ffffff;
+    --fail: #cf222e; --fail-soft: #ffebe9;
+    --brand: #159b81; --brand-soft: #e7f7f2;      /* from the logo; decoration only */
+    --accent: #0f7a66; --on-accent: #ffffff;       /* buttons and numbers: 5.3:1 with white */
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
-      --fail: #da3633; --fail-soft: #2d1214; --accent: #2f81f7; --accent-text: #ffffff;
+      --fail: #da3633; --fail-soft: #2d1214;
+      --brand: #3ad69e; --brand-soft: #10251f;
+      --accent: #3ad69e; --on-accent: #06241c;     /* 8.8:1 */
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
          font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 44rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
-  h1 { font-size: 1.75rem; margin: 0 0 .25rem; }
+  body::before { content: ""; display: block; height: 4px; background: var(--brand); }
+  main { max-width: 44rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+
+  .hero { display: flex; align-items: center; gap: 1rem; padding: 1.25rem 1.25rem;
+          border-radius: .8rem; background: linear-gradient(120deg, var(--brand-soft), transparent 75%); }
+  .hero .logo { width: 64px; height: 64px; flex: none; }
+  h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 .25rem; }
+  .lead { margin: 0; color: var(--muted); }
   h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
-  .lead { margin: 0 0 1.5rem; color: var(--muted); }
+
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: .6rem;
           padding: 1.25rem; margin: 1rem 0; }
-  .field { margin: 0 0 1.25rem; }
+  .field { margin: 0 0 1.5rem; }
   .field:last-of-type { margin-bottom: 1.5rem; }
-  label { display: block; font-weight: 700; margin-bottom: .35rem; }
+  label { display: block; font-weight: 700; margin-bottom: .4rem; }
+  .step { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; margin-right: .5rem;
+          border-radius: 50%; background: var(--accent); color: var(--on-accent);
+          font-size: .85rem; font-weight: 800; }
   .hint { color: var(--muted); font-size: .9rem; font-weight: 400; }
   p.hint { margin: .35rem 0 0; }
-  input[type=file] { display: block; width: 100%; padding: .5rem; border: 1px dashed var(--border);
-                     border-radius: .5rem; background: var(--bg); color: var(--text); font: inherit; }
+
+  input[type=file] { display: block; width: 100%; padding: .6rem; border: 2px dashed var(--border);
+                     border-radius: .5rem; background: var(--bg); color: var(--text); font: inherit;
+                     transition: border-color .15s, background-color .15s; }
+  input[type=file]:hover { border-color: var(--brand); background: var(--brand-soft); }
   input[type=file]::file-selector-button { min-height: 36px; margin-right: .75rem; padding: 0 .9rem;
         border: 1px solid var(--border); border-radius: .4rem; background: var(--surface);
         color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
   textarea { display: block; width: 100%; min-height: 12rem; resize: vertical; padding: .65rem .75rem;
              border: 1px solid var(--border); border-radius: .5rem; background: var(--bg);
-             color: var(--text); font: inherit; }
+             color: var(--text); font: inherit; transition: border-color .15s; }
+  textarea:hover { border-color: var(--brand); }
   input:focus-visible, textarea:focus-visible, button:focus-visible {
     outline: 3px solid var(--accent); outline-offset: 2px; }
-  button { min-height: 48px; padding: 0 1.75rem; border: 0; border-radius: .5rem;
-           background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 700;
-           cursor: pointer; }
-  button:hover { filter: brightness(1.1); }
+
+  button { min-height: 48px; padding: 0 2rem; border: 0; border-radius: .5rem;
+           background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 700;
+           cursor: pointer; box-shadow: 0 1px 0 rgba(0, 0, 0, .15);
+           transition: transform .15s, box-shadow .15s; }
+  button:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(21, 155, 129, .35); }
+  button:active { transform: translateY(0); box-shadow: none; }
   .error { background: var(--fail-soft); border-left: 5px solid var(--fail); border-radius: .4rem;
-           padding: .75rem 1rem; margin: 0 0 1rem; }
-  ul.checks { margin: .25rem 0 0; padding-left: 1.2rem; color: var(--muted); }
-  ul.checks li { margin: .2rem 0; }
+           padding: .75rem 1rem; margin: 1rem 0 0; }
+
+  .tiles { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); margin: 1rem 0; }
+  .tiles .card { margin: 0; border-top: 3px solid var(--brand); }
+  ul.ticks { list-style: none; margin: .25rem 0 0; padding: 0; color: var(--muted); }
+  ul.ticks li { position: relative; padding-left: 1.5rem; margin: .3rem 0; }
+  ul.ticks li::before { content: "✓"; position: absolute; left: 0; color: var(--brand); font-weight: 800; }
+
   .privacy { margin-top: 1.5rem; color: var(--muted); font-size: .9rem; }
-  @media (max-width: 30rem) { button { width: 100%; } }
+  .chip { display: inline-block; margin-right: .5rem; padding: .05rem .6rem; border-radius: 99px;
+          background: var(--brand-soft); border: 1px solid var(--brand); color: var(--text);
+          font-weight: 700; font-size: .8rem; }
+  @media (max-width: 30rem) {
+    .hero { flex-direction: column; align-items: flex-start; }
+    button { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    button:hover { transform: none; }
+  }
 </style>
 </head>
 <body>
 <main>
-<h1>CV ATS Check</h1>
-<p class="lead">Check a CV against a job ad with explainable, local heuristics.</p>
+<header class="hero">
+  {% if logo %}<img class="logo" src="{{ logo }}" alt="" width="64" height="64">{% endif %}
+  <div>
+    <h1>CV ATS Check</h1>
+    <p class="lead">See how your CV reads to an applicant tracking system, and how well it matches a job ad.</p>
+  </div>
+</header>
 {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
 <form class="card" method="post" action="/check" enctype="multipart/form-data">
   <div class="field">
-    <label for="cv">CV file <span class="hint">(.pdf or .docx, max 10 MB)</span></label>
+    <label for="cv"><span class="step" aria-hidden="true">1</span>CV file <span class="hint">(.pdf or .docx, max 10 MB)</span></label>
     <input type="file" id="cv" name="cv" accept=".pdf,.docx" required>
   </div>
 
   <div class="field">
-    <label for="job_text">Job ad <span class="hint">(optional; enables keyword and requirement checks)</span></label>
+    <label for="job_text"><span class="step" aria-hidden="true">2</span>Job ad <span class="hint">(optional; enables keyword and requirement checks)</span></label>
     <textarea id="job_text" name="job_text" aria-describedby="job-hint" placeholder="Paste the job ad text here">{{ job_text }}</textarea>
     <p class="hint" id="job-hint">Paste the whole ad, including headings such as “Requirements” and “Nice to have”.
     They let the tool weight must-have terms higher than nice-to-haves.</p>
@@ -79,15 +120,26 @@
   <button type="submit">Check CV</button>
 </form>
 
-<section class="card" aria-labelledby="what-heading">
-  <h2 id="what-heading">What is checked</h2>
-  <ul class="checks">
-    <li>The CV alone: readable text, layout, contact details, section headings, dates, length and file hygiene.</li>
-    <li>With a job ad: weighted keyword match (Swedish and English), repeated keywords, and the ad's requirements for experience, languages, work mode and location.</li>
-  </ul>
+<section class="tiles" aria-labelledby="what-heading">
+  <div class="card">
+    <h2 id="what-heading">Your CV alone</h2>
+    <ul class="ticks">
+      <li>Readable text and layout</li>
+      <li>Contact details and section headings</li>
+      <li>Dates, length and file hygiene</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>With a job ad</h2>
+    <ul class="ticks">
+      <li>Weighted keyword match, Swedish and English</li>
+      <li>Missing must-haves at a glance</li>
+      <li>Experience, languages, work mode and location</li>
+    </ul>
+  </div>
 </section>
 
-<p class="privacy">{{ privacy_note }} The file is read from a temporary folder and deleted when the report is made.</p>
+<p class="privacy"><span class="chip">✓ Local only</span>{{ privacy_note }} The file is read from a temporary folder and deleted when the report is made.</p>
 </main>
 </body>
 </html>

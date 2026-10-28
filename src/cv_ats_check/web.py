@@ -23,7 +23,10 @@ HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 _ALLOWED_HOSTNAMES = {"127.0.0.1", "localhost", "[::1]"}
-_CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'"
+_CSP = (
+    "default-src 'none'; style-src 'unsafe-inline'; img-src data:; "
+    "form-action 'self'; base-uri 'none'"
+)
 
 
 def _hostname(host_header: str) -> str:

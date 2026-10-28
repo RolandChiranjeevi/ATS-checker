@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import functools
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,6 +24,17 @@ DISCLAIMER_EN = (
 )
 PRIVACY_NOTE = "All processing happened locally; no data left your computer."
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
+_LOGO_PATH = Path(__file__).parent / "assets" / "logo.svg"
+
+
+@functools.cache
+def logo_data_uri() -> str:
+    """The logo as a ``data:`` URI (so downloaded reports stay self-contained), or '' if absent."""
+    try:
+        data = _LOGO_PATH.read_bytes()
+    except OSError:
+        return ""
+    return "data:image/svg+xml;base64," + base64.b64encode(data).decode()
 
 
 @dataclass
@@ -170,7 +182,7 @@ def render_form(error: str = "", job_text: str = "") -> str:
     return (
         _env()
         .get_template("index.html.j2")
-        .render(error=error, job_text=job_text, privacy_note=PRIVACY_NOTE)
+        .render(error=error, job_text=job_text, privacy_note=PRIVACY_NOTE, logo=logo_data_uri())
     )
 
 
@@ -272,6 +284,7 @@ def render_html(
         .get_template("report.html.j2")
         .render(
             back_link=back_link,
+            logo=logo_data_uri(),
             downloads=downloads,
             report=report,
             counts={s.value: n for s, n in report.counts().items()},

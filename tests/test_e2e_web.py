@@ -76,9 +76,51 @@ def test_form_is_labelled_and_explains_privacy(page):
     assert page.title() == "CV ATS Check"
     assert page.locator("html").get_attribute("lang") == "en"
     expect(page.get_by_label("CV file")).to_be_visible()
-    expect(page.get_by_label(re.compile(r"^Job ad"))).to_be_visible()  # not the file upload
+    expect(page.get_by_label(re.compile(r"Job ad \(optional"))).to_be_visible()  # not the upload
     expect(page.get_by_role("button", name="Check CV")).to_be_enabled()
     expect(page.get_by_text("All processing happened locally")).to_be_visible()
+
+
+def logo_loaded(page) -> bool:
+    return page.evaluate("document.querySelector('img.logo').naturalWidth") > 0
+
+
+def test_the_logo_loads_on_the_form_and_on_the_report(page, fixtures_dir, job_en):
+    expect(page.locator("img.logo")).to_be_visible()
+    assert logo_loaded(page)
+    run_report(page, fixtures_dir, job_en)
+    expect(page.locator("img.logo")).to_be_visible()
+    assert logo_loaded(page)
+    assert page.problems == []  # a blocked image would show up as a policy error here
+
+
+def test_the_primary_button_uses_the_brand_green(page):
+    button = page.get_by_role("button", name="Check CV")
+    assert button.evaluate("el => getComputedStyle(el).backgroundColor") == "rgb(15, 122, 102)"
+    assert button.evaluate("el => getComputedStyle(el).color") == "rgb(255, 255, 255)"
+
+
+def test_dark_mode_uses_the_light_green_with_dark_button_text(browser, server):
+    context = browser.new_context(color_scheme="dark")
+    page = context.new_page()
+    page.goto(server)
+    button = page.get_by_role("button", name="Check CV")
+    assert button.evaluate("el => getComputedStyle(el).backgroundColor") == "rgb(58, 214, 158)"
+    assert button.evaluate("el => getComputedStyle(el).color") == "rgb(6, 36, 28)"
+    context.close()
+
+
+def test_the_button_lifts_on_hover_but_not_for_reduced_motion(browser, server):
+    for reduced, expected_lift in (("no-preference", True), ("reduce", False)):
+        context = browser.new_context(reduced_motion=reduced)
+        page = context.new_page()
+        page.goto(server)
+        button = page.get_by_role("button", name="Check CV")
+        button.hover()
+        page.wait_for_timeout(300)  # let the 150 ms transition finish
+        lifted = button.evaluate("el => getComputedStyle(el).transform") != "none"
+        assert lifted is expected_lift, reduced
+        context.close()
 
 
 def test_submitting_without_a_file_is_stopped_by_the_browser(page, server):

@@ -5,21 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>CV ATS Check – {{ report.source }}</title>
+{% if logo %}<link rel="icon" type="image/svg+xml" href="{{ logo }}">{% endif %}
 <style>
   :root {
     color-scheme: light dark;
     --bg: #f6f8fa; --surface: #ffffff; --text: #1f2328; --muted: #59636e; --border: #d1d9e0;
     --pass: #1a7f37; --warn: #9a6700; --fail: #cf222e; --info: #57606a; --link: #0969da;
     --pass-soft: #dafbe1; --warn-soft: #fff8c5; --fail-soft: #ffebe9; --code: #eef1f4;
+    --brand: #159b81; --brand-soft: #e7f7f2;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
       --pass: #238636; --warn: #9e6a03; --fail: #da3633; --info: #6e7681; --link: #4493f8;
       --pass-soft: #12261e; --warn-soft: #272115; --fail-soft: #2d1214; --code: #1c2128;
+      --brand: #3ad69e; --brand-soft: #10251f;
     }
   }
   * { box-sizing: border-box; }
+  body::before { content: ""; display: block; height: 4px; background: var(--brand); }
   body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.55;
          font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
   main { max-width: 56rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
@@ -31,6 +35,9 @@
     outline: 3px solid var(--link); outline-offset: 2px; border-radius: .25rem; }
   .muted { color: var(--muted); }
   .back { display: inline-block; padding: .5rem 0; }
+  .brand { display: flex; align-items: center; gap: .75rem; margin: .25rem 0 .5rem; }
+  .brand h1 { margin: 0; }
+  .brand .logo { width: 44px; height: 44px; flex: none; }
   .file { margin: 0 0 .75rem; }
 
   .badge { display: inline-block; min-width: 3.4rem; text-align: center; padding: .05rem .45rem;
@@ -50,6 +57,7 @@
           padding: 1rem 1.25rem; margin: .75rem 0; }
   .card.FAIL-card { border-left: 5px solid var(--fail); }
   .card.WARN-card { border-left: 5px solid var(--warn); }
+  .card.job { border-top: 3px solid var(--brand); }
   .card p { margin: .35rem 0; }
   .suggestion { background: var(--code); padding: .5rem .75rem; border-radius: .4rem; }
 
@@ -134,7 +142,10 @@
 <main>
 <header>
   {% if back_link %}<a class="back" href="{{ back_link }}">&larr; Check another CV</a>{% endif %}
-  <h1>CV ATS Check</h1>
+  <div class="brand">
+    {% if logo %}<img class="logo" src="{{ logo }}" alt="" width="44" height="44">{% endif %}
+    <h1>CV ATS Check</h1>
+  </div>
   <p class="file"><strong>File:</strong> {{ report.source }} <span class="muted">· {{ report.parser_message }}</span></p>
   <p class="verdict" role="status">
     <span class="chip-count FAIL">{{ counts["FAIL"] }} FAIL</span><span class="chip-count WARN">{{ counts["WARN"] }} WARN</span><span class="chip-count PASS">{{ counts["PASS"] }} PASS</span>

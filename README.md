@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="src/cv_ats_check/reporting/assets/logo.svg" alt="cv-ats-check logo" width="96">
+</p>
+
 # cv-ats-check
 
 A **local**, explainable ATS/CV checker. It reads your CV (PDF or DOCX) and, optionally, a job ad,

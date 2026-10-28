@@ -3,33 +3,91 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>CV ATS Check</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
-  label { display: block; font-weight: 600; margin-top: 1.25rem; }
-  textarea { width: 100%; min-height: 12rem; box-sizing: border-box; font: inherit; padding: .5rem; }
-  button { margin-top: 1.5rem; padding: .6rem 1.4rem; font: inherit; font-weight: 600; cursor: pointer; }
-  .hint { color: #555; font-size: .9rem; font-weight: 400; }
-  .error { background: #ffebe9; border-left: 4px solid #cf222e; padding: .5rem 1rem; margin: 1rem 0; }
-  .privacy { margin-top: 2rem; color: #555; font-size: .9rem; }
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f8fa; --surface: #ffffff; --text: #1f2328; --muted: #59636e; --border: #d1d9e0;
+    --fail: #cf222e; --fail-soft: #ffebe9; --accent: #0969da; --accent-text: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
+      --fail: #da3633; --fail-soft: #2d1214; --accent: #2f81f7; --accent-text: #ffffff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 44rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
+  h1 { font-size: 1.75rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
+  .lead { margin: 0 0 1.5rem; color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: .6rem;
+          padding: 1.25rem; margin: 1rem 0; }
+  .field { margin: 0 0 1.25rem; }
+  .field:last-of-type { margin-bottom: 1.5rem; }
+  label { display: block; font-weight: 700; margin-bottom: .35rem; }
+  .hint { color: var(--muted); font-size: .9rem; font-weight: 400; }
+  p.hint { margin: .35rem 0 0; }
+  input[type=file] { display: block; width: 100%; padding: .5rem; border: 1px dashed var(--border);
+                     border-radius: .5rem; background: var(--bg); color: var(--text); font: inherit; }
+  input[type=file]::file-selector-button { min-height: 36px; margin-right: .75rem; padding: 0 .9rem;
+        border: 1px solid var(--border); border-radius: .4rem; background: var(--surface);
+        color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+  textarea { display: block; width: 100%; min-height: 12rem; resize: vertical; padding: .65rem .75rem;
+             border: 1px solid var(--border); border-radius: .5rem; background: var(--bg);
+             color: var(--text); font: inherit; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px; }
+  button { min-height: 48px; padding: 0 1.75rem; border: 0; border-radius: .5rem;
+           background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 700;
+           cursor: pointer; }
+  button:hover { filter: brightness(1.1); }
+  .error { background: var(--fail-soft); border-left: 5px solid var(--fail); border-radius: .4rem;
+           padding: .75rem 1rem; margin: 0 0 1rem; }
+  ul.checks { margin: .25rem 0 0; padding-left: 1.2rem; color: var(--muted); }
+  ul.checks li { margin: .2rem 0; }
+  .privacy { margin-top: 1.5rem; color: var(--muted); font-size: .9rem; }
+  @media (max-width: 30rem) { button { width: 100%; } }
 </style>
 </head>
 <body>
+<main>
 <h1>CV ATS Check</h1>
-<p>Check a CV against a job ad with explainable, local heuristics.</p>
+<p class="lead">Check a CV against a job ad with explainable, local heuristics.</p>
 {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
-<form method="post" action="/check" enctype="multipart/form-data">
-  <label for="cv">CV file <span class="hint">(.pdf or .docx, max 10 MB)</span></label>
-  <input type="file" id="cv" name="cv" accept=".pdf,.docx" required>
+<form class="card" method="post" action="/check" enctype="multipart/form-data">
+  <div class="field">
+    <label for="cv">CV file <span class="hint">(.pdf or .docx, max 10 MB)</span></label>
+    <input type="file" id="cv" name="cv" accept=".pdf,.docx" required>
+  </div>
 
-  <label for="job_text">Job ad <span class="hint">(optional; enables keyword checks)</span></label>
-  <textarea id="job_text" name="job_text" placeholder="Paste the job ad text here">{{ job_text }}</textarea>
+  <div class="field">
+    <label for="job_text">Job ad <span class="hint">(optional; enables keyword and requirement checks)</span></label>
+    <textarea id="job_text" name="job_text" aria-describedby="job-hint" placeholder="Paste the job ad text here">{{ job_text }}</textarea>
+    <p class="hint" id="job-hint">Paste the whole ad, including headings such as “Requirements” and “Nice to have”.
+    They let the tool weight must-have terms higher than nice-to-haves.</p>
+  </div>
 
-  <label for="job_file">…or upload the job ad as a text file</label>
-  <input type="file" id="job_file" name="job_file" accept=".txt,.md,text/plain">
+  <div class="field">
+    <label for="job_file">…or upload the job ad as a text file</label>
+    <input type="file" id="job_file" name="job_file" accept=".txt,.md,text/plain">
+  </div>
 
   <button type="submit">Check CV</button>
 </form>
+
+<section class="card" aria-labelledby="what-heading">
+  <h2 id="what-heading">What is checked</h2>
+  <ul class="checks">
+    <li>The CV alone: readable text, layout, contact details, section headings, dates, length and file hygiene.</li>
+    <li>With a job ad: weighted keyword match (Swedish and English), repeated keywords, and the ad's requirements for experience, languages, work mode and location.</li>
+  </ul>
+</section>
+
 <p class="privacy">{{ privacy_note }} The file is read from a temporary folder and deleted when the report is made.</p>
+</main>
 </body>
 </html>

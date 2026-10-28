@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import re
 
 import pytest
 
@@ -141,7 +142,123 @@ def test_html_renders_facts_as_a_table_with_info_badges(report):
     html = render_html(report)
     assert '<table class="facts">' in html
     assert '<span class="badge INFO">INFO</span>' in html
-    assert "<td>File name</td><td>cv_normal_en.pdf</td>" in html
+    assert (
+        '<td data-label="Item">File name</td><td data-label="Value">cv_normal_en.pdf</td>' in html
+    )
+
+
+def _with_one_warning(report):
+    from cv_ats_check.models import CheckResult
+
+    warning = CheckResult("Length and density", Status.FAIL, "Extremely short CV.", "Add more.")
+    return build_report(make_doc(["Anna Testsson"]), [*report.results, warning], job_provided=True)
+
+
+def test_html_lists_what_needs_attention_before_what_passed(report):
+    html = render_html(_with_one_warning(report))
+    assert html.index('id="attention-heading"') < html.index('id="passed-heading"')
+    attention = html[html.index('id="attention-heading"') : html.index('id="passed-heading"')]
+    assert "Length and density" in attention and "Extremely short CV." in attention
+    assert "Contact details" not in attention  # passed checks are collapsed further down
+
+
+def test_failures_are_listed_before_warnings():
+    from cv_ats_check.models import CheckResult
+
+    results = [
+        CheckResult("Warned", Status.WARN, "w"),
+        CheckResult("Failed", Status.FAIL, "f"),
+    ]
+    html = render_html(build_report(make_doc(["x"]), results, job_provided=False))
+    attention = html[html.index('id="attention-heading"') : html.index('id="passed-heading"')]
+    assert attention.index("Failed") < attention.index("Warned")
+
+
+def test_a_clean_report_says_nothing_needs_attention(report):
+    passed = [r for r in report.results if r.status is Status.PASS]
+    html = render_html(build_report(make_doc(["Anna Testsson"]), passed, job_provided=True))
+    assert "Nothing needs attention." in html
+    assert 'id="attention-heading"' not in html
+
+
+def test_job_card_shows_score_tiers_and_missing_terms(report):
+    html = render_html(report)
+    assert 'aria-labelledby="job-heading"' in html
+    assert "Match against the job ad" in html
+    assert 'class="num"' in html and "weighted keyword score" in html
+    assert "Missing must-have" in html and 'class="chips missing-must"' in html
+    assert "Found in your CV (" in html
+
+
+def test_a_check_that_was_not_run_is_skipped_not_passed(fixtures_dir):
+    doc = extract_document(fixtures_dir / "cv_normal_en.pdf")
+    report = build_report(doc, run_all_checks(doc), job_provided=False)
+    row = next(r for r in report.summary_rows() if r.name == "Job keyword match")
+    assert row.status is None
+
+    html = render_html(report)
+    badge = re.search(r'<li><span class="badge (\w+)">(\w+)</span> Job keyword match', html)
+    assert badge and badge.groups() == ("SKIPPED", "SKIPPED")
+    assert "- Job keyword match: not run (no --job given)" in render_markdown(report)
+    # the totals only count checks that actually ran
+    assert f"{report.counts()[Status.PASS]} PASS" in html
+
+
+def test_no_job_card_without_an_ad(fixtures_dir):
+    doc = extract_document(fixtures_dir / "cv_normal_en.pdf")
+    html = render_html(build_report(doc, run_all_checks(doc), job_provided=False))
+    assert "Match against the job ad" not in html
+    assert "not run (no --job given)" in html
+
+
+def test_every_check_has_an_anchor_that_the_overview_links_to(report):
+    html = render_html(report)
+    for name in ("Contact details", "Document hygiene", "Job keyword match"):
+        anchor = "check-" + name.casefold().replace(" ", "-")
+        assert f'id="{anchor}"' in html, name
+        assert f'href="#{anchor}"' in html, name
+
+
+def test_html_ids_are_unique(report):
+    from cv_ats_check.models import CheckResult
+
+    extra = CheckResult("Extra failing check", Status.FAIL, "Broken.", "Fix it.")
+    doc = make_doc(["Anna Testsson"])
+    html = render_html(build_report(doc, [*report.results, extra], job_provided=True))
+    ids = re.findall(r'\sid="([^"]+)"', html)
+    assert "check-extra-failing-check" in ids
+    assert len(ids) == len(set(ids)), sorted({i for i in ids if ids.count(i) > 1})
+
+
+def test_the_job_card_owns_the_keyword_check(report):
+    html = render_html(report)
+    assert html.count('id="check-job-keyword-match"') == 1
+    assert html.count("keywords from the job ad appear in the CV") == 1  # not repeated below
+    passed = html[html.index('id="passed-heading"') :]
+    assert "Job keyword match" not in passed
+
+
+def test_a_failing_job_match_counts_as_needing_attention():
+    from cv_ats_check.checks.keyword_checks import check_keyword_match
+
+    doc = make_doc(["Gardening only"])
+    result = check_keyword_match(doc, JobAd("Requirements\n- Python\n- Selenium\n"))
+    html = render_html(build_report(doc, [result], job_provided=True))
+    assert result.status is Status.FAIL
+    assert "1 check needs attention" in html
+    assert 'id="attention-heading"' not in html  # the card itself shows the failure
+
+
+def test_the_parser_message_sits_next_to_the_file_name(report):
+    html = render_html(report)
+    assert report.parser_message in html[: html.index("</header>")]
+    assert 'id="check-parser-status"' not in html
+
+
+def test_the_report_supports_dark_mode_and_print():
+    html = render_html(build_report(make_doc(["x"]), [], job_provided=False))
+    assert "prefers-color-scheme: dark" in html and "@media print" in html
+    assert 'name="color-scheme"' in html
 
 
 def test_facts_values_are_escaped():

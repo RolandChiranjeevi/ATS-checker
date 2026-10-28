@@ -106,9 +106,77 @@ def test_a_cv_and_a_pasted_ad_give_a_full_report(page, fixtures_dir, job_en):
     expect(page.locator("ul.summary li", has_text="Contact details")).to_be_visible()
     expect(page.locator("ul.summary li", has_text="Job keyword match")).to_be_visible()
     expect(page.locator("ul.summary .badge.PASS").first).to_be_visible()
-    expect(page.get_by_role("heading", name="Document hygiene")).to_be_visible()
-    expect(page.locator("table.facts").first).to_be_visible()
+    expect(page.get_by_role("heading", name="Match against the job ad")).to_be_visible()
+    hygiene_table = page.locator("#check-document-hygiene table.facts")
+    expect(hygiene_table).to_be_hidden()  # a passed check is collapsed until opened
+    page.locator("#check-document-hygiene summary").click()
+    expect(hygiene_table).to_be_visible()
     assert page.problems == []
+
+
+def test_the_job_card_leads_with_the_score_and_the_missing_must_haves(page, fixtures_dir, job_en):
+    run_report(page, fixtures_dir, job_en)
+    card = page.locator("section.job")
+    expect(card).to_be_visible()
+    assert re.fullmatch(r"\d+%", card.locator(".num").inner_text())
+    expect(card.get_by_text("Missing must-have")).to_be_visible()
+    expect(card.locator("ul.chips.missing-must li").first).to_be_visible()
+    # the card sits above the list of individual checks
+    assert (
+        card.bounding_box()["y"] < page.locator("nav[aria-label='All checks']").bounding_box()["y"]
+    )
+
+
+def test_failures_are_open_and_first_while_passes_are_collapsed(page, fixtures_dir):
+    submit(page, fixtures_dir / "cv_no_contact.pdf")
+    expect(page.locator("h1")).to_have_text("CV ATS Check")
+    attention = page.locator("#check-contact-details")
+    expect(attention).to_be_visible()
+    expect(attention.get_by_text("Suggestion:")).to_be_visible()
+    expect(page.locator("details.passed[open]")).to_have_count(0)
+    first_heading = page.locator("h2").filter(has_text=re.compile("Needs attention|Passed")).first
+    expect(first_heading).to_contain_text("Needs attention")
+
+
+def test_without_a_job_ad_the_keyword_row_says_skipped_not_pass(page, fixtures_dir):
+    submit(page, fixtures_dir / "cv_normal_en.pdf")
+    row = page.locator("ul.summary li", has_text="Job keyword match")
+    expect(row.locator(".badge")).to_have_text("SKIPPED")
+    expect(row).to_contain_text("not run (no --job given)")
+    expect(page.locator("section.job")).to_have_count(0)
+
+
+def test_overview_links_jump_to_the_check(page, fixtures_dir):
+    submit(page, fixtures_dir / "cv_no_contact.pdf")
+    page.get_by_role("navigation", name="All checks").get_by_role(
+        "link", name="Section headings"
+    ).click()
+    assert page.url.endswith("#check-section-headings")
+
+
+def test_keyboard_users_get_a_visible_focus_ring(page):
+    page.keyboard.press("Tab")
+    outline = page.evaluate("getComputedStyle(document.activeElement).outlineStyle")
+    assert outline != "none"
+
+
+def test_buttons_and_download_links_are_comfortable_touch_targets(page, fixtures_dir, job_en):
+    assert page.get_by_role("button", name="Check CV").bounding_box()["height"] >= 44
+    run_report(page, fixtures_dir, job_en)
+    for name in ("Download Markdown (.md)", "Download HTML (.html)"):
+        assert page.get_by_role("link", name=name).bounding_box()["height"] >= 44
+
+
+def test_dark_mode_is_supported(browser, server, fixtures_dir, job_en):
+    context = browser.new_context(color_scheme="dark")
+    page = context.new_page()
+    page.goto(server)
+    form_background = page.evaluate("getComputedStyle(document.body).backgroundColor")
+    submit(page, fixtures_dir / "cv_normal_en.pdf", job_en.read_text(encoding="utf-8"))
+    expect(page.locator("h1")).to_have_text("CV ATS Check")
+    report_background = page.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert form_background == report_background == "rgb(13, 17, 23)"
+    context.close()
 
 
 def test_the_extracted_text_view_opens_and_shows_reading_order(page, fixtures_dir, job_en):

@@ -3,85 +3,224 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>CV ATS Check – {{ report.source }}</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
-  .badge { display: inline-block; min-width: 3.2rem; text-align: center; padding: 0 .4rem; border-radius: .3rem; font-weight: 600; color: #fff; }
-  .PASS { background: #1a7f37; } .WARN { background: #9a6700; } .FAIL { background: #cf222e; }
-  blockquote { margin: 1rem 0; padding: .5rem 1rem; border-left: 4px solid #999; background: #f6f6f6; }
-  ul.summary { list-style: none; padding: 0; }
-  ul.summary li { margin: .25rem 0; }
-  section.check { margin: 1.5rem 0; }
-  .extra { font-family: ui-monospace, monospace; font-size: .9rem; margin: .25rem 0; }
-  .downloads a { display: inline-block; margin: 0 .5rem .5rem 0; padding: .4rem .9rem; border: 1px solid #555; border-radius: .3rem; color: inherit; text-decoration: none; font-weight: 600; }
-  details.ats-view { margin: 1rem 0; }
-  details.ats-view summary { cursor: pointer; font-weight: 600; }
-  pre.ats-text { white-space: pre-wrap; word-break: break-word; background: #f6f6f6; padding: .75rem 1rem; border-radius: .3rem; font-size: .85rem; }
-  .page-label { font-weight: 600; margin: 1rem 0 .25rem; }
-  .INFO { background: #57606a; }
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f8fa; --surface: #ffffff; --text: #1f2328; --muted: #59636e; --border: #d1d9e0;
+    --pass: #1a7f37; --warn: #9a6700; --fail: #cf222e; --info: #57606a; --link: #0969da;
+    --pass-soft: #dafbe1; --warn-soft: #fff8c5; --fail-soft: #ffebe9; --code: #eef1f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --surface: #161b22; --text: #e6edf3; --muted: #9198a1; --border: #30363d;
+      --pass: #238636; --warn: #9e6a03; --fail: #da3633; --info: #6e7681; --link: #4493f8;
+      --pass-soft: #12261e; --warn-soft: #272115; --fail-soft: #2d1214; --code: #1c2128;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.55;
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 56rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  h1 { font-size: 1.75rem; margin: .25rem 0 .5rem; }
+  h2 { font-size: 1.2rem; margin: 2rem 0 .75rem; }
+  h3 { font-size: 1rem; margin: 0 0 .35rem; }
+  a { color: var(--link); }
+  a:focus-visible, summary:focus-visible, .btn:focus-visible {
+    outline: 3px solid var(--link); outline-offset: 2px; border-radius: .25rem; }
+  .muted { color: var(--muted); }
+  .back { display: inline-block; padding: .5rem 0; }
+  .file { margin: 0 0 .75rem; }
+
+  .badge { display: inline-block; min-width: 3.4rem; text-align: center; padding: .05rem .45rem;
+           border-radius: .3rem; font-size: .85rem; font-weight: 700; color: #fff; }
+  .PASS { background: var(--pass); } .WARN { background: var(--warn); }
+  .FAIL { background: var(--fail); } .INFO, .SKIPPED { background: var(--info); }
+  .chip-count { display: inline-block; padding: .2rem .7rem; border-radius: 99px; font-weight: 700;
+                color: #fff; margin: 0 .35rem .35rem 0; }
+  .lead { margin: .25rem 0 1rem; font-size: 1.05rem; }
+
+  .btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 1rem; margin: 0 .5rem .5rem 0;
+         border: 1px solid var(--border); border-radius: .4rem; background: var(--surface);
+         color: var(--text); font-weight: 600; text-decoration: none; }
+  .btn:hover { border-color: var(--link); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: .6rem;
+          padding: 1rem 1.25rem; margin: .75rem 0; }
+  .card.FAIL-card { border-left: 5px solid var(--fail); }
+  .card.WARN-card { border-left: 5px solid var(--warn); }
+  .card p { margin: .35rem 0; }
+  .suggestion { background: var(--code); padding: .5rem .75rem; border-radius: .4rem; }
+
+  .job .score { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+  .job .num { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+  .tiers { list-style: none; padding: 0; margin: .75rem 0; display: grid; gap: .5rem;
+           grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+  .tiers .bar { display: block; height: .5rem; margin-top: .25rem; background: var(--code);
+                border-radius: 99px; overflow: hidden; }
+  .tiers .bar span { display: block; height: 100%; background: var(--pass); }
+  .job h3 { margin-top: 1rem; }
+  ul.chips { list-style: none; padding: 0; margin: .25rem 0; display: flex; flex-wrap: wrap; gap: .4rem; }
+  ul.chips li { padding: .15rem .6rem; border-radius: 99px; border: 1px solid var(--border);
+                font-size: .9rem; overflow-wrap: anywhere; }
+  ul.chips.missing-must li { background: var(--fail-soft); border-color: var(--fail); }
+  ul.chips.missing-nice li { background: var(--warn-soft); border-color: var(--warn); }
+  ul.chips.found li { background: var(--pass-soft); border-color: var(--pass); }
+
+  nav ul.summary { list-style: none; padding: 0; margin: 0; display: grid; gap: .25rem .75rem;
+                   grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); }
+  ul.summary li { padding: .25rem 0; }
+  ul.summary a { text-underline-offset: 2px; }
+
+  summary { list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; display: inline-block; width: 1.1rem; flex: none; color: var(--muted); }
+  details[open] > summary::before { content: "▾"; }
+  details.passed { padding: .25rem 1.25rem; }
+  details.passed > summary { cursor: pointer; display: flex; gap: .6rem; align-items: baseline;
+                             flex-wrap: wrap; min-height: 44px; align-content: center; }
+  details.passed > summary .name { font-weight: 700; }
+  details.passed[open] > summary { margin-bottom: .5rem; }
+
   table.facts { border-collapse: collapse; width: 100%; font-size: .9rem; margin: .5rem 0; }
-  table.facts th, table.facts td { text-align: left; vertical-align: top; padding: .35rem .5rem; border-bottom: 1px solid #ddd; }
-  table.facts td { word-break: break-word; }
+  table.facts th, table.facts td { text-align: left; vertical-align: top; padding: .4rem .5rem;
+                                   border-bottom: 1px solid var(--border); }
+  table.facts td { overflow-wrap: anywhere; }
   table.facts ul.links { margin: .35rem 0 0; padding-left: 1.1rem; }
-  table.facts ul.links a { color: #0969da; }
+
+  details.ats-view summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+  pre.ats-text { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--code); padding: .75rem 1rem;
+                 border-radius: .4rem; font-size: .85rem; }
+  .page-label { font-weight: 600; margin: 1rem 0 .25rem; }
+  footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border);
+           color: var(--muted); font-size: .9rem; }
+  footer p { margin: .25rem 0; }
+
+  @media (max-width: 40rem) {
+    main { padding-top: 1rem; }
+    table.facts thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    table.facts tr { display: block; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+    table.facts td { display: block; border: 0; padding: .15rem 0; }
+    table.facts td::before { content: attr(data-label); display: block; font-size: .75rem;
+                             font-weight: 700; color: var(--muted); text-transform: uppercase; }
+  }
+  @media print {
+    body { background: #fff; color: #000; }
+    .back, .downloads { display: none; }
+    .card { break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
-{% if back_link %}<p><a href="{{ back_link }}">&larr; Check another CV</a></p>{% endif %}
-<h1>CV ATS Check</h1>
-<p><strong>File:</strong> {{ report.source }}</p>
-{% if downloads %}<p class="downloads">{% for label, filename, href in downloads %}<a download="{{ filename }}" href="{{ href }}">{{ label }}</a>{% endfor %}</p>{% endif %}
-<blockquote>{{ disclaimer_sv }}<br>{{ disclaimer_en }}</blockquote>
-
-<h2>Summary</h2>
-<ul class="summary">
-{% for name, status, note in rows %}
-  <li><span class="badge {{ status }}">{{ status }}</span> {{ name }}{% if note %} – {{ note }}{% endif %}</li>
-{% endfor %}
-</ul>
-<p><strong>Totals:</strong> {{ counts["PASS"] }} PASS, {{ counts["WARN"] }} WARN, {{ counts["FAIL"] }} FAIL</p>
-
-<h2>Details</h2>
-<section class="check">
-  <h3>Parser status</h3>
-  <p><span class="badge PASS">PASS</span> {{ report.parser_message }}</p>
-</section>
-{% for r, extra in results %}
-<section class="check">
-  <h3>{{ r.name }}</h3>
-  <p><span class="badge {{ r.status.value }}">{{ r.status.value }}</span> {{ r.message }}</p>
-  {% if r.suggestion %}<p><strong>Suggestion:</strong> {{ r.suggestion }}</p>{% endif %}
-  {% for line in extra %}<p class="extra">{{ line }}</p>{% endfor %}
+{% macro facts_table(r) %}
   {% if r.facts %}
   <table class="facts">
     <thead><tr><th>Item</th><th>Value</th><th>Status</th><th>Note</th></tr></thead>
     <tbody>
     {% for f in r.facts %}
       {% set label = f.status.value if f.status else "INFO" %}
-      <tr><td>{{ f.label }}</td><td>{{ f.value }}{% if f.links %}<ul class="links">{% for url in f.links %}<li><a href="{{ url }}" target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer">{{ url }}</a></li>{% endfor %}</ul>{% endif %}</td><td><span class="badge {{ label }}">{{ label }}</span></td><td>{{ f.note }}</td></tr>
+      <tr><td data-label="Item">{{ f.label }}</td><td data-label="Value">{{ f.value }}{% if f.links %}<ul class="links">{% for url in f.links %}<li><a href="{{ url }}" target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer">{{ url }}</a></li>{% endfor %}</ul>{% endif %}</td><td data-label="Status"><span class="badge {{ label }}">{{ label }}</span></td><td data-label="Note">{{ f.note }}</td></tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
-</section>
-{% endfor %}
+{% endmacro %}
+{% macro check_body(r) %}
+  <p>{{ r.message }}</p>
+  {% if r.suggestion %}<p class="suggestion"><strong>Suggestion:</strong> {{ r.suggestion }}</p>{% endif %}
+  {{ facts_table(r) }}
+{% endmacro %}
+<main>
+<header>
+  {% if back_link %}<a class="back" href="{{ back_link }}">&larr; Check another CV</a>{% endif %}
+  <h1>CV ATS Check</h1>
+  <p class="file"><strong>File:</strong> {{ report.source }} <span class="muted">· {{ report.parser_message }}</span></p>
+  <p class="verdict" role="status">
+    <span class="chip-count FAIL">{{ counts["FAIL"] }} FAIL</span><span class="chip-count WARN">{{ counts["WARN"] }} WARN</span><span class="chip-count PASS">{{ counts["PASS"] }} PASS</span>
+  </p>
+  <p class="lead">{% if needs_attention %}{{ needs_attention }} check{{ "s" if needs_attention != 1 }} need{{ "" if needs_attention != 1 else "s" }} attention, listed first below.{% else %}Nothing needs attention.{% endif %}
+    <span class="muted">A heuristic local check, not a guarantee.</span></p>
+  {% if downloads %}<p class="downloads">{% for label, filename, href in downloads %}<a class="btn" download="{{ filename }}" href="{{ href }}">{{ label }}</a>{% endfor %}</p>{% endif %}
+</header>
 
-{% if report.extracted_pages %}
-<h2>What an ATS sees</h2>
-<p>This is the text extracted from your file, in the order a parser reads it. If your name,
-dates or section headings look jumbled, missing or out of order here, an ATS will see the same.</p>
-<details class="ats-view">
-  <summary>Show extracted text</summary>
-  {% for page, text in report.extracted_pages %}
-  {% if report.paginated %}<p class="page-label">Page {{ page }}</p>{% endif %}
-  <pre class="ats-text">{{ text }}</pre>
-  {% endfor %}
-</details>
+{% if job %}
+<section class="card job" id="{{ job.anchor }}" aria-labelledby="job-heading">
+  <h2 id="job-heading" style="margin-top:0">Match against the job ad</h2>
+  <div class="score">
+    <span class="num">{{ job.score }}%</span>
+    <span class="badge {{ job.status }}">{{ job.status }}</span>
+    <span class="muted">{% if job.has_tiers %}weighted keyword score{% else %}keywords found{% endif %}</span>
+  </div>
+  {% if job.tiers %}
+  <ul class="tiers">
+    {% for t in job.tiers %}<li><strong>{{ t.label }}</strong> {{ t.found }} of {{ t.total }} found<span class="bar" aria-hidden="true"><span style="width: {{ t.pct }}%"></span></span></li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if job.missing_must %}<h3>Missing must-have</h3><ul class="chips missing-must">{% for term in job.missing_must %}<li>{{ term }}</li>{% endfor %}</ul>{% endif %}
+  {% if job.missing_nice %}<h3>Missing nice-to-have</h3><ul class="chips missing-nice">{% for term in job.missing_nice %}<li>{{ term }}</li>{% endfor %}</ul>{% endif %}
+  {% if job.missing_other %}<h3>{% if job.has_tiers %}Missing (other){% else %}Missing{% endif %}</h3><ul class="chips missing-nice">{% for term in job.missing_other %}<li>{{ term }}</li>{% endfor %}</ul>{% endif %}
+  {% if not (job.missing_must or job.missing_nice or job.missing_other) %}<p>Every keyword from the ad appears in your CV.</p>{% endif %}
+  {% if job.frequent %}<h3>Repeated too often</h3><ul class="chips missing-nice">{% for term, n in job.frequent %}<li>{{ term }} ({{ n }} times)</li>{% endfor %}</ul>{% endif %}
+  <details style="margin-top:.75rem"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">Found in your CV ({{ job.found|length }})</summary>
+    <ul class="chips found">{% for term in job.found %}<li>{{ term }}</li>{% endfor %}</ul>
+  </details>
+  <p class="muted">{{ job.message }}</p>
+  {% if job.suggestion %}<p class="suggestion"><strong>Suggestion:</strong> {{ job.suggestion }}</p>{% endif %}
+</section>
 {% endif %}
 
-<h2>Disclaimer</h2>
-<p>{{ disclaimer_sv }}</p>
-<p>{{ disclaimer_en }}</p>
-<p><em>{{ privacy_note }}</em></p>
+<nav aria-label="All checks">
+  <h2>All checks</h2>
+  <ul class="summary">
+  {% for name, status, note, anchor in rows %}
+    <li><span class="badge {{ status }}">{{ status }}</span> {% if anchor %}<a href="#{{ anchor }}">{{ name }}</a>{% else %}{{ name }}{% endif %}{% if note %} <span class="muted">– {{ note }}</span>{% endif %}</li>
+  {% endfor %}
+  </ul>
+</nav>
+
+{% if attention %}
+<section aria-labelledby="attention-heading">
+  <h2 id="attention-heading">Needs attention ({{ attention|length }})</h2>
+  {% for r in attention %}
+  <article class="card {{ r.status.value }}-card" id="{{ anchors[r.name] }}">
+    <h3>{{ r.name }} <span class="badge {{ r.status.value }}">{{ r.status.value }}</span></h3>
+    {{ check_body(r) }}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section aria-labelledby="passed-heading">
+  <h2 id="passed-heading">Passed ({{ passed|length }})</h2>
+  {% for r in passed %}
+  <details class="card passed" id="{{ anchors[r.name] }}">
+    <summary><span class="badge PASS">PASS</span><span class="name">{{ r.name }}</span><span class="muted">{{ r.message }}</span></summary>
+    {{ check_body(r) }}
+  </details>
+  {% endfor %}
+</section>
+
+{% if report.extracted_pages %}
+<section aria-labelledby="ats-heading">
+  <h2 id="ats-heading">What an ATS sees</h2>
+  <p>This is the text extracted from your file, in the order a parser reads it. If your name,
+  dates or section headings look jumbled, missing or out of order here, an ATS will see the same.</p>
+  <details class="ats-view">
+    <summary>Show extracted text</summary>
+    {% for page, text in report.extracted_pages %}
+    {% if report.paginated %}<p class="page-label">Page {{ page }}</p>{% endif %}
+    <pre class="ats-text">{{ text }}</pre>
+    {% endfor %}
+  </details>
+</section>
+{% endif %}
+
+<footer>
+  <p>{{ disclaimer_sv }}</p>
+  <p>{{ disclaimer_en }}</p>
+  <p><em>{{ privacy_note }}</em></p>
+</footer>
+</main>
 </body>
 </html>

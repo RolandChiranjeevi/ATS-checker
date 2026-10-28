@@ -28,7 +28,7 @@ _TEMPLATE_DIR = Path(__file__).parent / "templates"
 @dataclass
 class SummaryRow:
     name: str
-    status: Status
+    status: Status | None  # None = the check was not run (shown as SKIPPED)
     note: str = ""
 
 
@@ -57,7 +57,7 @@ class Report:
             note = f"{analysis.score_pct}%" if r.name == MATCH_NAME and analysis else ""
             rows.append(SummaryRow(r.name, r.status, note))
         if not self.job_provided:
-            rows.append(SummaryRow("Job keyword match", Status.PASS, "not run (no --job given)"))
+            rows.append(SummaryRow("Job keyword match", None, "not run (no --job given)"))
         return rows
 
 
@@ -203,12 +203,70 @@ def download_links(report: Report) -> list[tuple[str, str, str]]:
     ]
 
 
+_ANCHOR_RE = re.compile(r"[^a-z0-9]+")
+_TIER_LABELS = {"must": "Must-have", "general": "Other keywords", "nice": "Nice-to-have"}
+
+
+def _anchor(name: str) -> str:
+    """An HTML id for a check, e.g. 'Document hygiene' -> 'check-document-hygiene'."""
+    return "check-" + _ANCHOR_RE.sub("-", name.casefold()).strip("-")
+
+
+def _job_card(report: Report) -> dict | None:
+    """The data for the 'match against the job ad' card, or None when no ad was checked."""
+    for result in report.results:
+        analysis = result.details.get("analysis")
+        if result.name != MATCH_NAME or not analysis or not analysis.total:
+            continue
+        counts = analysis.tier_counts()
+        tiers = (
+            [
+                {"label": _TIER_LABELS[t], "found": f, "total": n, "pct": round(100 * f / n)}
+                for t, (f, n) in counts.items()
+                if n
+            ]
+            if analysis.has_tiers
+            else []
+        )
+
+        def missing(tier: str, analysis=analysis) -> list[str]:
+            return [k.term for k in analysis.missing if k.tier == tier]
+
+        return {
+            "anchor": _anchor(result.name),
+            "score": analysis.score_pct,
+            "status": result.status.value,
+            "message": result.message,
+            "suggestion": result.suggestion,
+            "has_tiers": analysis.has_tiers,
+            "tiers": tiers,
+            "missing_must": missing("must"),
+            "missing_nice": missing("nice"),
+            "missing_other": missing("general"),
+            "found": [k.term for k in analysis.found],
+            "frequent": [(k.term, k.cv_count) for k in analysis.frequent],
+        }
+    return None
+
+
 def render_html(
     report: Report,
     back_link: str | None = None,
     downloads: list[tuple[str, str, str]] | None = None,
 ) -> str:
-    """Render the report as a standalone HTML page (autoescaped)."""
+    """Render the report as a standalone HTML page (autoescaped).
+
+    Checks that need attention come first (FAIL before WARN); passed checks are collapsed.
+    """
+    job = _job_card(report)
+    in_card = {MATCH_NAME} if job else set()  # the job card already carries this check
+    attention = sorted(
+        (r for r in report.results if r.status is not Status.PASS and r.name not in in_card),
+        key=lambda r: -r.status.severity,
+    )
+    passed = [r for r in report.results if r.status is Status.PASS and r.name not in in_card]
+    needs_attention = len(attention) + (1 if job and job["status"] != Status.PASS.value else 0)
+    anchors = {r.name: _anchor(r.name) for r in report.results}
     return (
         _env()
         .get_template("report.html.j2")
@@ -217,8 +275,21 @@ def render_html(
             downloads=downloads,
             report=report,
             counts={s.value: n for s, n in report.counts().items()},
-            rows=[(row.name, row.status.value, row.note) for row in report.summary_rows()],
-            results=[(r, _extra_lines(r)) for r in report.results],
+            rows=[
+                (
+                    row.name,
+                    row.status.value if row.status else "SKIPPED",
+                    row.note,
+                    anchors.get(row.name),
+                )
+                for row in report.summary_rows()
+                if row.name != "Parser status"  # shown next to the file name instead
+            ],
+            job=job,
+            needs_attention=needs_attention,
+            attention=attention,
+            passed=passed,
+            anchors=anchors,
             disclaimer_sv=DISCLAIMER_SV,
             disclaimer_en=DISCLAIMER_EN,
             privacy_note=PRIVACY_NOTE,

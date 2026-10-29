@@ -17,7 +17,7 @@ from cv_ats_check.checks import run_all_checks
 from cv_ats_check.checks.contact_checks import find_emails, find_phones
 from cv_ats_check.checks.date_checks import find_dates
 from cv_ats_check.checks.heading_checks import find_sections
-from cv_ats_check.extraction import extract_document
+from cv_ats_check.extraction import ExtractionError, extract_document
 from cv_ats_check.models import JobAd, Status
 
 FORMATS = ["CV-dummy.pdf", "CV-dummy.docx"]
@@ -133,18 +133,58 @@ def test_an_unrelated_cv_scores_zero_against_a_testing_ad(dummy, job_sv):
 
 # --- guard: nothing personal in any fixture -------------------------------------------------------
 
-PERSONAL = re.compile(rb"thylin|protondrive|/users/johan|johan@", re.IGNORECASE)
+# The fixtures may only mention the made-up persona: home folder /Users/jan/ and the e-mail
+# domains gma1l.com / example.com. Anything else that looks like a real person's data is a leak.
+PERSONAL = re.compile(
+    rb"/Users/(?!jan/)[^/\s\"'<>]+"  # someone else's home folder
+    rb"|CloudStorage|ProtonDrive|OneDrive|Dropbox"  # cloud-sync folders live inside home folders
+    rb"|[\w.+-]+@(?!(?:gma1l|example)\.com\b)[\w-]+\.[\w.-]+",  # any other e-mail address
+    re.IGNORECASE,
+)
+
+
+@pytest.mark.parametrize(
+    "leak",
+    [
+        b"file:///Users/alice/Documents/cv",
+        b"/Users/alice/Library/CloudStorage/ProtonDrive-alice-folder",
+        b"alice@proton.me",
+        b"bob.smith@real-company.se",
+        b"C:/Dropbox/cv",
+    ],
+)
+def test_the_guard_catches_planted_personal_data(leak):
+    assert PERSONAL.search(leak)
+
+
+@pytest.mark.parametrize(
+    "fine",
+    [b"file:///Users/jan/Documents/portfolio", b"jan.jansson@gma1l.com", b"anna@example.com"],
+)
+def test_the_guard_allows_the_made_up_persona(fine):
+    assert not PERSONAL.search(fine)
+
+
+def visible_content(path) -> list[bytes]:
+    """What someone opening the file could read: text, properties and links (PDF), the XML
+    parts (DOCX) or the bytes themselves (plain text). Compressed streams are not scanned raw:
+    random bytes can look like an e-mail address by chance."""
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as archive:
+            return [archive.read(n) for n in archive.namelist() if n.endswith((".xml", ".rels"))]
+    if path.suffix.lower() == ".pdf":
+        try:
+            doc = extract_document(path)
+        except ExtractionError:  # the deliberately corrupt/empty fixtures are tiny plain files
+            return [path.read_bytes()]
+        return [part.encode() for part in (doc.text, *doc.metadata.values(), *doc.links)]
+    return [path.read_bytes()]
 
 
 def test_no_fixture_contains_personal_data(fixtures_dir):
-    offenders = []
-    for path in sorted(fixtures_dir.iterdir()):
-        if not path.is_file():
-            continue
-        blobs = [path.read_bytes()]
-        if zipfile.is_zipfile(path):
-            with zipfile.ZipFile(path) as archive:
-                blobs += [archive.read(name) for name in archive.namelist()]
-        if any(PERSONAL.search(blob) for blob in blobs):
-            offenders.append(path.name)
+    offenders = [
+        path.name
+        for path in sorted(fixtures_dir.iterdir())
+        if path.is_file() and any(PERSONAL.search(blob) for blob in visible_content(path))
+    ]
     assert offenders == [], f"personal data in fixtures: {offenders}"

@@ -36,22 +36,23 @@ with its own tests.
 - It does **not** imitate any specific ATS (Workday, Greenhouse, Teamtailor, ...). Results are heuristics.
 - It does not give a single "ATS score". Each result is explained.
 - It does not rewrite your CV and does not use any AI/LLM service.
-- Keyword matching is literal (with plural-`s` folding). It does not understand synonyms or Swedish inflection (e.g. `testning` vs `testa`).
+- Keyword matching is literal apart from plural folding and a curated list of equivalent Swedish/English
+  terms and Swedish word endings (`nlp/aliases.py`, e.g. `testning`/`testing`). Other synonyms are not understood.
 - Scanned PDFs are detected, not OCR'd.
 
 ## Privacy
 
-All processing happens **on your computer**. The package has no networking code and no
-dependency on any API or cloud service. A test (`tests/test_privacy.py`) blocks sockets during
-the whole test run and scans the source for network/AI-client imports. Reports are written only
-to the path you choose.
+All processing happens **on your computer**. Nothing is sent anywhere: there is no outbound
+networking code and no dependency on any API or cloud service. The optional web UI only listens
+on `127.0.0.1`. A test (`tests/test_privacy.py`) blocks sockets during the whole test run and
+scans the source for network/AI-client imports. Reports are written only to the path you choose.
 
 ## Install
 
 Requires Python 3.11+.
 
 ```bash
-git clone <your-repo-url> cv-ats-check
+git clone https://github.com/RolandChiranjeevi/ATS-checker.git cv-ats-check
 cd cv-ats-check
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
@@ -113,8 +114,10 @@ src/cv_ats_check/
 ├── extraction/            PDF (PyMuPDF) and DOCX (python-docx) -> ExtractedDocument
 ├── checks/                one module per check; each is f(doc, job) -> CheckResult | None
 ├── nlp/                   normalisation, stop words (sv/en), keyword extraction
-├── reporting/             Markdown + HTML (Jinja2, autoescaped)
-└── cli.py                 argparse, exit codes
+├── reporting/             Markdown + HTML (Jinja2, autoescaped), logo
+├── service.py             the pipeline shared by the CLI and the web UI
+├── cli.py                 argparse, exit codes
+└── web.py                 local Flask UI (127.0.0.1 only)
 ```
 
 Design rules: extraction is the only layer that touches files; checks are pure and individually
@@ -142,6 +145,9 @@ in `checks/__init__.py`.
 
 - `pytest`, with fixtures generated programmatically (`tests/helpers.py`) from synthetic data, so
   no real personal data is committed.
+- **Real-world fixtures:** `tests/fixtures/CV-dummy.pdf` and `.docx` are the same made-up CV
+  ("Jan Jansson") exported from Word. They caught a DOCX layout blind spot and pin down PDF/DOCX
+  parity. A test scans every fixture for personal data.
 - Positive and negative cases: normal CV, no contact details, mixed dates, Swedish characters
   (Å Ä Ö), scanned PDF, corrupt PDF, empty file, wrong file type, DOCX.
 - Parametrised tests for date formats, phone numbers, section-name synonyms and length limits.
@@ -169,9 +175,15 @@ pytest -m "not e2e"                    # without the browser tests
 
 ## Roadmap
 
-See the end of the project hand-off for suggested next improvements: OCR fallback, Swedish
-lemmatisation, ATS-parser simulation profiles, multi-column layout detection, a weighted match
-score, config file for thresholds, JSON output, and a small web UI.
+Ideas, roughly in order of value:
+
+- Test and tune the layout and hygiene checks on more real-world LaTeX and Word CVs
+  (ligatures, icon fonts, borderless tables).
+- A real Swedish lemmatiser and a larger Swedish/English term list.
+- Compare one CV against several job ads.
+- Highlight matched and missing keywords in the extracted CV text.
+- OCR fallback for scanned PDFs (detected today, not read).
+- JSON output and a config file for the thresholds.
 
 ## License
 
